@@ -1,0 +1,231 @@
+﻿import { useState } from "react";
+import { Lock, Eye, EyeOff, ShieldCheck, CheckCircle, AlertCircle, KeyRound } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useApp } from "../../context/AppContext";
+
+const inputCls = "w-full px-4 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl text-sm bg-white dark:bg-[#111726] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all";
+
+function getStrength(pw) {
+  if (!pw) return { score: 0, label: "", color: "" };
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { score, label: "Weak", color: "bg-red-500", textColor: "text-red-400" };
+  if (score <= 2) return { score, label: "Fair", color: "bg-amber-500", textColor: "text-amber-400" };
+  if (score <= 3) return { score, label: "Good", color: "bg-blue-500", textColor: "text-blue-400" };
+  return { score, label: "Strong", color: "bg-emerald-500", textColor: "text-emerald-400" };
+}
+
+export default function StudentPassword() {
+  const { currentStudent } = useAuth();
+  const { students, saveStudents, addToast } = useApp();
+
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  if (!currentStudent) return null;
+
+  const storedStudent = students.find(s => s.id === currentStudent.id);
+  const actualPw = storedStudent?.password || "1234";
+  const strength = getStrength(newPw);
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    setError(""); setSaved(false);
+
+    // Verify current password
+    if (!currentPw) { setError("Please enter your current password."); return; }
+    if (currentPw !== actualPw) { setError("Current password is incorrect."); return; }
+
+    // Validate new password
+    if (!newPw) { setError("Please enter a new password."); return; }
+    if (newPw.length < 6) { setError("New password must be at least 6 characters."); return; }
+    if (newPw !== confirmPw) { setError("New passwords do not match."); return; }
+    if (newPw === currentPw) { setError("New password must be different from current password."); return; }
+
+    // Save to students array — auto-syncs to admin & teacher views
+    const updated = students.map(s =>
+      s.id === currentStudent.id ? { ...s, password: newPw } : s
+    );
+    saveStudents(updated);
+
+    // Also update active session so re-login works immediately
+    const updatedStudent = { ...currentStudent, password: newPw };
+    localStorage.setItem("attendify_student_session", JSON.stringify(updatedStudent));
+
+    addToast("Password updated successfully!", "success");
+    setSaved(true);
+    setCurrentPw(""); setNewPw(""); setConfirmPw("");
+    setTimeout(() => setSaved(false), 4000);
+  };
+
+  return (
+    <div className="w-full max-w-lg mx-auto space-y-5 animate-fade-in pb-10">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+          <KeyRound size={22} className="text-blue-400" /> Change Password
+        </h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          Update your login password. Changes apply instantly across all sessions.
+        </p>
+      </div>
+
+      {/* Info card */}
+      <div className="rounded-2xl bg-blue-500/10 border border-blue-500/20 p-4 flex items-start gap-3">
+        <ShieldCheck size={18} className="text-blue-400 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-slate-900 dark:text-white">{currentStudent.name}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Class {currentStudent.class}-{currentStudent.section} &bull; Roll #{currentStudent.rollNumber}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Your password is managed by your school. Admin can reset it if you forget it.
+          </p>
+        </div>
+      </div>
+
+      {/* Form */}
+      <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-5 sm:p-6 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+        <form onSubmit={handleSave} className="space-y-4">
+
+          {/* Current Password */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Current Password *
+            </label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type={showCurrent ? "text" : "password"}
+                value={currentPw}
+                onChange={e => { setCurrentPw(e.target.value); setError(""); setSaved(false); }}
+                placeholder="Enter current password"
+                className={`${inputCls} pl-10 pr-10`}
+              />
+              <button type="button" onClick={() => setShowCurrent(v => !v)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer">
+                {showCurrent ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+              Default password is <span className="font-semibold text-blue-400 dark:text-blue-400">1234</span> if you have not changed it yet.
+            </p>
+          </div>
+
+          <div className="border-t border-slate-100 dark:border-white/10" />
+
+          {/* New Password */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              New Password *
+            </label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type={showNew ? "text" : "password"}
+                value={newPw}
+                onChange={e => { setNewPw(e.target.value); setError(""); setSaved(false); }}
+                placeholder="Min. 6 characters"
+                className={`${inputCls} pl-10 pr-10`}
+              />
+              <button type="button" onClick={() => setShowNew(v => !v)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer">
+                {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+
+            {/* Strength meter */}
+            {newPw && (
+              <div className="mt-2 space-y-1.5">
+                <div className="flex gap-1">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${i <= strength.score ? strength.color : "bg-slate-200 dark:bg-white/10"}`} />
+                  ))}
+                </div>
+                <div className="flex justify-between items-center">
+                  <p className="text-[11px] text-slate-400">Use A-Z, 0-9, symbols (!@#\$%)</p>
+                  <p className={`text-[11px] font-bold ${strength.textColor}`}>{strength.label}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Confirm New Password *
+            </label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type={showConfirm ? "text" : "password"}
+                value={confirmPw}
+                onChange={e => { setConfirmPw(e.target.value); setError(""); setSaved(false); }}
+                placeholder="Re-enter new password"
+                className={`${inputCls} pl-10 pr-10`}
+              />
+              <button type="button" onClick={() => setShowConfirm(v => !v)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer">
+                {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            {confirmPw && newPw && (
+              <p className={`text-[11px] mt-1.5 font-semibold ${confirmPw === newPw ? "text-emerald-500" : "text-red-400"}`}>
+                {confirmPw === newPw ? "✓ Passwords match" : "✗ Passwords do not match"}
+              </p>
+            )}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5 text-xs text-red-500 dark:text-red-400">
+              <AlertCircle size={14} className="flex-shrink-0" /> {error}
+            </div>
+          )}
+
+          {/* Success */}
+          {saved && (
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-2.5 text-xs text-emerald-600 dark:text-emerald-400">
+              <CheckCircle size={14} className="flex-shrink-0" /> Password updated! Admin and teacher can see the new password.
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="w-full btn-primary justify-center py-2.5 mt-2"
+          >
+            <ShieldCheck size={15} /> Update Password
+          </button>
+        </form>
+      </div>
+
+      {/* Tips */}
+      <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-4 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+        <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2.5">Password Tips</h3>
+        <ul className="space-y-1.5">
+          {[
+            "Use at least 6 characters",
+            "Mix uppercase and lowercase letters (A-Z, a-z)",
+            "Add numbers (0-9) for extra security",
+            "Include symbols like ! @ # $ % for a strong password",
+            "Do not share your password with anyone",
+          ].map((tip, i) => (
+            <li key={i} className="flex items-start gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="text-blue-400 font-bold mt-0.5">•</span> {tip}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}

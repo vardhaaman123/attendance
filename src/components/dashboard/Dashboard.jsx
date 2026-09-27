@@ -1,108 +1,114 @@
-import { useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserCheck, UserX, TrendingUp, ChevronRight, BookOpen, AlertTriangle, Calendar } from 'lucide-react';
+import {
+  Users,
+  UserCheck,
+  UserX,
+  TrendingUp,
+  ChevronRight,
+  BookOpen,
+  AlertTriangle,
+  Calendar,
+  Sparkles,
+  Megaphone,
+  Download,
+  Clock,
+  ArrowUpRight,
+  ShieldCheck,
+  CheckCircle2,
+  MessageSquare,
+  ClipboardCheck,
+  BarChart3,
+  SlidersHorizontal,
+  Lock,
+} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { getTodayStats, getLowAttendanceStudents, getWeeklyData } from '../../utils/attendanceCalc';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  getTodayStats,
+  getLowAttendanceStudents,
+  getWeeklyData,
+  getClassComparison,
+} from '../../utils/attendanceCalc';
+import {
+  BarChart,
+  Bar,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
-function StatCard({ icon: Icon, label, value, sub, trend, color, bg }) {
-  return (
-    <div className="card hover:shadow-card-hover transition-all duration-300 group cursor-default animate-slide-up">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`w-11 h-11 rounded-xl ${bg} flex items-center justify-center`}>
-          <Icon size={20} className={color} />
-        </div>
-        {trend !== undefined && (
-          <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${trend >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend)}%
-          </span>
-        )}
-      </div>
-      <p className="text-2xl font-bold text-navy-900 dark:text-white mb-0.5">{value}</p>
-      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</p>
-      {sub && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{sub}</p>}
-    </div>
-  );
-}
-
-function ClassCard({ cls, students, records, onSelect }) {
-  const navigate = useNavigate();
-  const sectionStats = ['A', 'B'].map(section => {
-    const classStudents = students.filter(s => s.class === cls && s.section === section);
-    const today = new Date().toISOString().split('T')[0];
-    const key = `${today}_${cls}_${section}`;
-    const record = records[key];
-    const present = record
-      ? Object.values(record.attendance || {}).filter(v => v === 'present' || v === 'late').length
-      : null;
-    return { section, total: classStudents.length, present };
-  });
-
-  return (
-    <div
-      onClick={() => { onSelect(cls, 'A'); navigate('/attendance'); }}
-      className="card hover:shadow-card-hover transition-all duration-300 cursor-pointer group"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="w-10 h-10 rounded-xl bg-brand-blue-soft flex items-center justify-center">
-          <BookOpen size={18} className="text-brand-blue" />
-        </div>
-        <ChevronRight size={16} className="text-slate-400 group-hover:text-brand-blue group-hover:translate-x-0.5 transition-all" />
-      </div>
-      <p className="text-base font-bold text-navy-900 dark:text-white mb-1">Class {cls}</p>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-        {students.filter(s => s.class === cls).length} Students · 2 Sections
-      </p>
-      <div className="space-y-2">
-        {sectionStats.map(({ section, total, present }) => (
-          <div key={section} className="flex items-center justify-between">
-            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Section {section}</span>
-            <div className="flex items-center gap-2">
-              <div className="w-20 h-1.5 bg-slate-100 dark:bg-navy-700 rounded-full overflow-hidden">
-                {present !== null && (
-                  <div
-                    className="h-full bg-green-500 rounded-full transition-all"
-                    style={{ width: `${Math.round((present / total) * 100)}%` }}
-                  />
-                )}
-              </div>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                {present !== null ? `${Math.round((present / total) * 100)}%` : 'Not taken'}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const CustomTooltip = ({ active, payload, label }) => {
+function CustomDarkTooltip({ active, payload, label }) {
   if (active && payload && payload.length) {
+    const val = payload[0].value;
     return (
-      <div className="bg-white dark:bg-navy-700 border border-slate-100 dark:border-navy-600 rounded-xl shadow-lg px-3 py-2">
-        <p className="text-xs font-semibold text-navy-900 dark:text-white">{label}</p>
-        <p className="text-xs text-brand-blue font-bold">{payload[0].value}% Attendance</p>
+      <div className="bg-[#0E1422] border border-white/15 rounded-xl shadow-2xl p-3 backdrop-blur-xl">
+        <p className="text-xs font-semibold text-slate-300 mb-1">{label}</p>
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+          <p className="text-sm font-bold text-white">{val}% Attendance</p>
+        </div>
+        {payload[0].payload?.present !== undefined && (
+          <p className="text-[11px] text-slate-400 mt-1">
+            {payload[0].payload.present} present out of {payload[0].payload.total}
+          </p>
+        )}
       </div>
     );
   }
   return null;
-};
+}
 
 export default function Dashboard() {
-  const { students, attendanceRecords, setSelectedClass, setSelectedSection } = useApp();
+  const { role, user } = useAuth();
+  const {
+    students,
+    attendanceRecords,
+    setSelectedClass,
+    setSelectedSection,
+    messages,
+    addToast,
+    settings,
+  } = useApp();
   const navigate = useNavigate();
 
-  const todayStats = useMemo(() => getTodayStats(students, attendanceRecords), [students, attendanceRecords]);
-  const weeklyData = useMemo(() => getWeeklyData(students, attendanceRecords), [students, attendanceRecords]);
-  const lowAttendance = useMemo(() => getLowAttendanceStudents(students, attendanceRecords), [students, attendanceRecords]);
+  const displayName = role === 'admin' 
+    ? (settings?.teacherName || user?.name || 'Administrator') 
+    : (user?.name || 'Teacher');
 
+  // Filter by class pill (null = All Classes)
+  const [filterClass, setFilterClass] = useState(role === 'teacher' && user?.class ? user.class : 'all');
+  const [chartView, setChartView] = useState('weekly'); // 'weekly' | 'classes'
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 640 : false));
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Filter students based on selected class
+  const activeStudents = useMemo(() => {
+    if (filterClass === 'all') return students;
+    return students.filter((s) => s.class === filterClass);
+  }, [students, filterClass]);
+
+  const todayStats = useMemo(() => getTodayStats(activeStudents, attendanceRecords), [activeStudents, attendanceRecords]);
+  const weeklyData = useMemo(() => getWeeklyData(activeStudents, attendanceRecords), [activeStudents, attendanceRecords]);
+  const classComparison = useMemo(() => getClassComparison(students, attendanceRecords), [students, attendanceRecords]);
+  const lowAttendance = useMemo(() => getLowAttendanceStudents(activeStudents, attendanceRecords), [activeStudents, attendanceRecords]);
+
+  // Yesterday rate calculation for trend
   const yesterday = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     const ds = d.toISOString().split('T')[0];
     let p = 0, t = 0;
-    students.forEach(s => {
+    activeStudents.forEach((s) => {
       const key = `${ds}_${s.class}_${s.section}`;
       const record = attendanceRecords[key];
       if (record?.attendance?.[s.id]) {
@@ -111,192 +117,629 @@ export default function Dashboard() {
       }
     });
     return t > 0 ? Math.round((p / t) * 100) : 0;
-  }, [students, attendanceRecords]);
+  }, [activeStudents, attendanceRecords]);
 
   const trend = todayStats.percentage - yesterday;
 
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={Users}
-          label="Total Students"
-          value={todayStats.total}
-          sub="Across all classes"
-          color="text-brand-blue"
-          bg="bg-brand-blue-soft"
-        />
-        <StatCard
-          icon={UserCheck}
-          label="Present Today"
-          value={todayStats.present}
-          sub={`+${todayStats.late} Late`}
-          trend={4.2}
-          color="text-green-600"
-          bg="bg-green-50"
-        />
-        <StatCard
-          icon={UserX}
-          label="Absent Today"
-          value={todayStats.absent}
-          sub="Across all classes"
-          trend={-1.8}
-          color="text-red-600"
-          bg="bg-red-50"
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="Attendance Rate"
-          value={`${todayStats.percentage}%`}
-          sub="Today's overall rate"
-          trend={trend}
-          color="text-amber-600"
-          bg="bg-amber-50"
-        />
-      </div>
+  // Recent announcements preview
+  const recentAnnouncements = useMemo(() => {
+    return (messages || [])
+      .filter((m) => m.targetId === 'all')
+      .slice(-3)
+      .reverse();
+  }, [messages]);
 
-      {/* Classes + Chart row */}
-      <div className="grid lg:grid-cols-3 gap-4">
-        {/* Classes */}
-        <div className="lg:col-span-1 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-navy-900 dark:text-white">Classes</h2>
+  // Greeting time
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
+
+  // Export today's attendance CSV
+  const handleExportCSV = () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const rows = [
+        ['Student Name', 'Roll Number', 'Class', 'Section', 'Status', 'Date'],
+      ];
+
+      activeStudents.forEach((s) => {
+        const key = `${today}_${s.class}_${s.section}`;
+        const record = attendanceRecords[key];
+        const status = record?.attendance?.[s.id] || 'Not Marked';
+        rows.push([s.name, s.rollNumber || '—', s.class, s.section, status, today]);
+      });
+
+      const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((e) => e.join(',')).join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `Attendance_Summary_${today}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      addToast?.('Attendance CSV report downloaded successfully', 'success');
+    } catch {
+      addToast?.('Failed to export CSV', 'error');
+    }
+  };
+
+  const handleClassSelect = (cls, sec) => {
+    setSelectedClass(cls);
+    setSelectedSection(sec);
+    navigate('/attendance');
+  };
+
+  return (
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto pb-8 animate-fade-in text-slate-100">
+      {/* ── TOP HERO COMMAND BANNER ── */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0E1528] via-[#0B0F1A] to-[#070A12] border border-white/10 p-3.5 sm:p-7 shadow-[0_4px_30px_rgba(0,0,0,0.4)]">
+        {/* Glow orb */}
+        <div className="absolute top-0 right-10 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 sm:gap-6">
+          <div className="space-y-1.5 sm:space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                <ShieldCheck size={13} className="text-blue-400" />
+                {role === 'admin' ? 'Administrative Command' : `Class ${user?.class || '10'}-${user?.section || 'A'} Faculty`}
+              </span>
+            </div>
+
+            <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">
+              {greeting}, <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-300 bg-clip-text text-transparent">{displayName}</span> 👋
+            </h1>
+
+            {/* Class Filter Pills */}
+            <div className="pt-1 sm:pt-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="text-[11px] sm:text-xs font-medium text-slate-400 mr-0.5 sm:mr-1 flex items-center gap-1">
+                <SlidersHorizontal size={12} /> Filter:
+              </span>
+              {[
+                { id: 'all', label: 'All Classes' },
+                ...Array.from(new Set([...students.map(s => s.class), '8', '9', '10'])).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(c => ({ id: c, label: `Class ${c}` }))
+              ].map((pill) => (
+                <button
+                  key={pill.id}
+                  onClick={() => setFilterClass(pill.id)}
+                  className={`px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-semibold transition-all cursor-pointer ${
+                    filterClass === pill.id
+                      ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.4)] border border-blue-400/40'
+                      : 'bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.08] border border-white/[0.06]'
+                  }`}
+                >
+                  {pill.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto">
             <button
-              onClick={() => navigate('/classes')}
-              className="text-xs text-brand-blue font-medium hover:underline flex items-center gap-1"
+              onClick={() => navigate('/attendance')}
+              className="flex-1 lg:flex-initial min-h-[36px] sm:min-h-[40px] px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all cursor-pointer active:scale-95"
             >
-              View all <ChevronRight size={12} />
+              <ClipboardCheck size={15} />
+              <span>Take Attendance</span>
+            </button>
+            <button
+              onClick={() => navigate('/messages')}
+              className="flex-1 lg:flex-initial min-h-[36px] sm:min-h-[40px] px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#111726] hover:bg-[#161F34] border border-white/10 hover:border-blue-500/30 text-slate-200 hover:text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-all cursor-pointer active:scale-95"
+            >
+              <Megaphone size={15} className="text-blue-400" />
+              <span>Broadcast<span className="hidden sm:inline"> Notice</span></span>
+            </button>
+            <button
+              onClick={handleExportCSV}
+              className="h-[36px] sm:h-[40px] w-[36px] sm:w-[40px] rounded-xl bg-[#111726] hover:bg-[#161F34] border border-white/10 hover:border-emerald-500/30 text-slate-300 hover:text-emerald-400 transition-all cursor-pointer flex items-center justify-center flex-shrink-0 active:scale-95"
+              title="Download Today's Attendance CSV"
+            >
+              <Download size={16} />
             </button>
           </div>
-          <div className="space-y-3">
-            {['8', '9', '10'].map(cls => (
-              <ClassCard
-                key={cls}
-                cls={cls}
-                students={students}
-                records={attendanceRecords}
-                onSelect={(c, s) => { setSelectedClass(c); setSelectedSection(s); }}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Weekly Chart */}
-        <div className="lg:col-span-2 card">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-sm font-bold text-navy-900 dark:text-white">Weekly Attendance</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Last 5 working days</p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-brand-blue" />
-              <span className="text-xs text-slate-500">Attendance %</span>
-            </div>
-          </div>
-          {weeklyData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={weeklyData} barSize={32}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis
-                  dataKey="day"
-                  tick={{ fontSize: 12, fill: '#94a3b8' }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  domain={[60, 100]}
-                  tick={{ fontSize: 11, fill: '#94a3b8' }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={v => `${v}%`}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#eff6ff', radius: 4 }} />
-                <Bar dataKey="percentage" fill="#2563EB" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-48 flex items-center justify-center text-slate-400 text-sm">No data available yet</div>
-          )}
         </div>
       </div>
 
-      {/* Low Attendance + Today's summary */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        {/* Low attendance */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={16} className="text-amber-500" />
-              <h2 className="text-sm font-bold text-navy-900 dark:text-white">Low Attendance Alert</h2>
+      {/* ── 4 KPI STAT CARDS ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        {/* Total Students */}
+        <div className="relative group overflow-hidden rounded-xl sm:rounded-2xl bg-[#0B0F19]/80 border border-white/10 hover:border-blue-500/30 p-2.5 sm:p-5 backdrop-blur-xl transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.25)] hover:shadow-[0_4px_25px_rgba(59,130,246,0.1)]">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+              <Users size={16} className="sm:w-5 sm:h-5" />
             </div>
-            <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full">
+            <span className="text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-white/[0.04] text-slate-400 border border-white/[0.06] truncate max-w-[85px]">
+              <span className="hidden sm:inline">{filterClass === 'all' ? '6 Sections' : `Class ${filterClass}`}</span>
+              <span className="sm:hidden">{filterClass === 'all' ? '6 Secs' : `Cl. ${filterClass}`}</span>
+            </span>
+          </div>
+          <p className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">{todayStats.total}</p>
+          <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 truncate">Total Enrolled</p>
+          <div className="mt-3 pt-3 border-t border-white/[0.06] hidden sm:flex items-center justify-between text-[11px] text-slate-400">
+            <span>Active Roster</span>
+            <span className="text-blue-400 font-semibold">100% Registered</span>
+          </div>
+        </div>
+
+        {/* Present Today */}
+        <div className="relative group overflow-hidden rounded-xl sm:rounded-2xl bg-[#0B0F19]/80 border border-white/10 hover:border-emerald-500/30 p-2.5 sm:p-5 backdrop-blur-xl transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.25)] hover:shadow-[0_4px_25px_rgba(16,185,129,0.1)]">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+              <UserCheck size={16} className="sm:w-5 sm:h-5" />
+            </div>
+            {trend !== 0 && (
+              <span className={`text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full border ${
+                trend > 0
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+              }`}>
+                {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%<span className="hidden sm:inline"> vs yest.</span>
+              </span>
+            )}
+          </div>
+          <p className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">{todayStats.present}</p>
+          <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 truncate">Present Today</p>
+          <div className="mt-3 pt-3 border-t border-white/[0.06] hidden sm:flex items-center justify-between text-[11px] text-slate-400">
+            <span>Absent check-ins:</span>
+            <span className="text-rose-400 font-semibold">{todayStats.absent} students</span>
+          </div>
+        </div>
+
+        {/* Absent Today */}
+        <div className="relative group overflow-hidden rounded-xl sm:rounded-2xl bg-[#0B0F19]/80 border border-white/10 hover:border-rose-500/30 p-2.5 sm:p-5 backdrop-blur-xl transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.25)] hover:shadow-[0_4px_25px_rgba(244,63,94,0.1)]">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+              <UserX size={16} className="sm:w-5 sm:h-5" />
+            </div>
+            <span className={`text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full border ${
+              todayStats.absent > 10
+                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                : 'bg-white/[0.04] text-slate-400 border-white/[0.06]'
+            }`}>
+              {todayStats.absent > 0 ? 'Absence' : 'All In'}
+            </span>
+          </div>
+          <p className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">{todayStats.absent}</p>
+          <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 truncate">Absent Today</p>
+          <div className="mt-3 pt-3 border-t border-white/[0.06] hidden sm:flex items-center justify-between text-[11px] text-slate-400">
+            <span>Absenteeism:</span>
+            <span className="text-rose-400 font-semibold">
+              {todayStats.total > 0 ? Math.round((todayStats.absent / todayStats.total) * 100) : 0}%
+            </span>
+          </div>
+        </div>
+
+        {/* Attendance Rate */}
+        <div className="relative group overflow-hidden rounded-xl sm:rounded-2xl bg-[#0B0F19]/80 border border-white/10 hover:border-amber-500/30 p-2.5 sm:p-5 backdrop-blur-xl transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.25)] hover:shadow-[0_4px_25px_rgba(245,158,11,0.1)]">
+          <div className="flex items-start justify-between mb-2 sm:mb-3">
+            <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+              <TrendingUp size={16} className="sm:w-5 sm:h-5" />
+            </div>
+            <span className={`text-[10px] sm:text-[11px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full border ${
+              todayStats.percentage >= 85
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : todayStats.percentage >= 75
+                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+            }`}>
+              {todayStats.percentage >= 85 ? 'Optimal' : todayStats.percentage >= 75 ? 'Moderate' : 'Low'}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <p className="text-xl sm:text-3xl font-extrabold text-white tracking-tight">{todayStats.percentage}%</p>
+          </div>
+          <p className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider mt-0.5 truncate">Overall Turnout</p>
+          <div className="mt-3 pt-3 border-t border-white/[0.06] hidden sm:block">
+            <div className="w-full bg-white/[0.06] rounded-full h-1.5 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  todayStats.percentage >= 85 ? 'bg-emerald-500' : todayStats.percentage >= 75 ? 'bg-amber-500' : 'bg-rose-500'
+                }`}
+                style={{ width: `${todayStats.percentage}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MIDDLE ROW: CLASSES STATUS & ANALYTICS VISUALIZER ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Classes & Sections Live Status (5 Cols) */}
+        <div className="lg:col-span-5 flex flex-col space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2 tracking-tight">
+              <BookOpen size={16} className="text-blue-400" />
+              Classes & Sections Overview
+            </h2>
+            <span className="text-[11px] text-slate-400">Live Status</span>
+          </div>
+
+          <div className="space-y-3">
+            {Array.from(new Set([...students.map(s => s.class), '8', '9', '10'])).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map((cls) => {
+              const classStudents = students.filter((s) => s.class === cls);
+              const sectionStats = Array.from(new Set([...classStudents.map(s => s.section), 'A', 'B'])).sort().map((section) => {
+                const secStudents = classStudents.filter((s) => s.section === section);
+                const today = new Date().toISOString().split('T')[0];
+                const key = `${today}_${cls}_${section}`;
+                const record = attendanceRecords[key];
+                const isMarked = !!record;
+                const present = record
+                  ? Object.values(record.attendance || {}).filter((v) => v === 'present' || v === 'late').length
+                  : null;
+                const pct = present !== null && secStudents.length > 0 ? Math.round((present / secStudents.length) * 100) : null;
+                return { section, total: secStudents.length, present, isMarked, pct };
+              });
+
+              const isClassLocked = false;
+
+              return (
+                <div
+                  key={cls}
+                  className={`rounded-2xl ${isClassLocked ? 'bg-[#0B0F19]/40 opacity-75 grayscale-[30%]' : 'bg-[#0B0F19]/80'} border border-white/10 p-3 sm:p-4 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.2)] ${!isClassLocked && 'hover:border-blue-500/30'} transition-all group`}
+                >
+                  <div className="flex items-center justify-between mb-2.5 sm:mb-3">
+                    <div className="flex items-center gap-2 sm:gap-2.5">
+                      <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl ${isClassLocked ? 'bg-slate-500/10 border-slate-500/20 text-slate-400' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'} border flex items-center justify-center font-bold text-xs`}>
+                        {cls}th
+                      </div>
+                      <div>
+                        <h3 className={`text-xs sm:text-sm font-bold text-white ${!isClassLocked && 'group-hover:text-blue-400'} transition-colors flex items-center gap-1.5 sm:gap-2`}>
+                          Class {cls} {isClassLocked && <Lock size={12} className="text-slate-500" />}
+                        </h3>
+                        <p className="text-[10px] sm:text-[11px] text-slate-400">{classStudents.length} Students registered</p>
+                      </div>
+                    </div>
+                    {isClassLocked ? (
+                      <button
+                        onClick={() => handleClassSelect(cls, 'A')}
+                        className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.02] text-slate-500 border border-white/[0.04] text-[11px] sm:text-xs font-semibold flex items-center gap-1 cursor-not-allowed"
+                        title="Restricted Access"
+                      >
+                        <Lock size={12} />
+                        <span>Locked</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleClassSelect(cls, 'A')}
+                        className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-blue-600/20 text-slate-300 hover:text-blue-400 border border-white/[0.06] hover:border-blue-500/30 text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                      >
+                        <span>Take</span>
+                        <ArrowUpRight size={13} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Sections Breakdown */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {sectionStats.map((sec) => {
+                      const isSectionLocked = false;
+                      return (
+                      <div
+                        key={sec.section}
+                        onClick={() => handleClassSelect(cls, sec.section)}
+                        className={`p-2 sm:p-2.5 rounded-xl ${isSectionLocked ? 'bg-[#0E131F]/50 border-white/[0.03] cursor-not-allowed grayscale-[30%]' : 'bg-[#111726]/80 hover:bg-[#161F34] border-white/[0.06] hover:border-blue-500/20 cursor-pointer'} border transition-all`}
+                      >
+                        <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                          <span className={`text-[11px] sm:text-xs font-semibold ${isSectionLocked ? 'text-slate-500' : 'text-slate-200'} flex items-center gap-1`}>
+                            Sec {sec.section} {isSectionLocked && <Lock size={10} className="text-slate-600" />}
+                          </span>
+                          <span
+                            className={`text-[9px] px-1.5 py-0.2 rounded font-semibold border ${
+                              isSectionLocked
+                                ? 'bg-slate-500/5 text-slate-500 border-slate-500/10'
+                                : sec.isMarked
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            }`}
+                          >
+                            {sec.isMarked ? `${sec.present}/${sec.total}` : 'Pending'}
+                          </span>
+                        </div>
+                        <div className="w-full bg-white/[0.06] rounded-full h-1 overflow-hidden mb-1">
+                          <div
+                            className={`h-full rounded-full ${isSectionLocked ? 'bg-slate-600/40' : sec.isMarked ? 'bg-emerald-500' : 'bg-amber-500/40'}`}
+                            style={{ width: `${sec.pct ?? 0}%` }}
+                          />
+                        </div>
+                        <p className={`text-[9px] sm:text-[10px] ${isSectionLocked ? 'text-slate-500' : 'text-slate-400'} text-right`}>
+                          {sec.pct !== null ? `${sec.pct}% Present` : 'Not marked'}
+                        </p>
+                      </div>
+                    )})}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Interactive Analytics Visualizer (7 Cols) */}
+        <div className="lg:col-span-7 flex flex-col rounded-2xl bg-[#0B0F19]/80 border border-white/10 p-3.5 sm:p-5 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.2)] min-w-0 overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-2.5 sm:mb-6">
+            <div>
+              <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 sm:gap-2 tracking-tight">
+                <BarChart3 size={15} className="text-blue-400" />
+                Attendance Telemetry & Analytics
+              </h2>
+              <p className="text-[10px] sm:text-xs text-slate-400 mt-0.5">
+                {chartView === 'weekly' ? 'Daily turnout trend over the past 5 school days' : 'Comparative turnout across grade tiers'}
+              </p>
+            </div>
+
+            {/* View switcher */}
+            <div className="flex items-center gap-1 bg-[#111726] border border-white/10 rounded-xl p-0.5 sm:p-1 self-start sm:self-auto">
+              <button
+                onClick={() => setChartView('weekly')}
+                className={`px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[11px] sm:text-xs font-semibold transition-all cursor-pointer ${
+                  chartView === 'weekly'
+                    ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(59,130,246,0.4)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Weekly Trend
+              </button>
+              <button
+                onClick={() => setChartView('classes')}
+                className={`px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[11px] sm:text-xs font-semibold transition-all cursor-pointer ${
+                  chartView === 'classes'
+                    ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(59,130,246,0.4)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Class Comparison
+              </button>
+            </div>
+          </div>
+
+          <div className="h-[150px] sm:h-[260px] w-full min-w-0 overflow-hidden">
+            {chartView === 'weekly' ? (
+              weeklyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={isMobile ? 150 : 260}>
+                  <AreaChart data={weeklyData} margin={{ top: isMobile ? 5 : 10, right: 10, left: isMobile ? -25 : -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: isMobile ? 10 : 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[50, 100]} tick={{ fontSize: isMobile ? 10 : 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip content={<CustomDarkTooltip />} />
+                    <Area type="monotone" dataKey="percentage" stroke="#3B82F6" strokeWidth={isMobile ? 2.5 : 3} fillOpacity={1} fill="url(#areaGradient)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-500 text-xs">No weekly data recorded yet</div>
+              )
+            ) : (
+              <ResponsiveContainer width="100%" height={isMobile ? 150 : 260}>
+                <BarChart data={classComparison} barSize={isMobile ? 22 : 42} margin={{ top: isMobile ? 5 : 10, right: 10, left: isMobile ? -25 : -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="class" tick={{ fontSize: isMobile ? 10 : 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[50, 100]} tick={{ fontSize: isMobile ? 10 : 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip content={<CustomDarkTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)', radius: 8 }} />
+                  <Bar dataKey="percentage" fill="#6366F1" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="mt-2.5 sm:mt-4 pt-2 sm:pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] sm:text-xs text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-blue-500 animate-pulse" />
+              Live Telemetry<span className="hidden sm:inline"> Updated</span>
+            </span>
+            <button onClick={() => navigate('/reports')} className="text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 cursor-pointer">
+              View Detailed Analytics <ChevronRight size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── LOWER ROW: WATCHLIST + NOTICEBOARD + QUICK COMMANDS ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+        {/* Low Attendance Watchlist */}
+        <div className="rounded-2xl bg-[#0B0F19]/80 border border-white/10 p-3 sm:p-5 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+          <div className="flex items-center justify-between mb-2.5 sm:mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                <AlertTriangle size={13} className="sm:w-3.5 sm:h-3.5" />
+              </div>
+              <h2 className="text-xs sm:text-sm font-bold text-white tracking-tight">Defaulter Watchlist</h2>
+            </div>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20">
               Below 75%
             </span>
           </div>
-          {lowAttendance.length === 0 ? (
-            <div className="text-center py-6">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                <UserCheck size={20} className="text-green-600" />
-              </div>
-              <p className="text-sm text-slate-500 dark:text-slate-400">All students have good attendance!</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {lowAttendance.slice(0, 5).map(s => (
-                <div key={s.id} className="flex items-center justify-between p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20">
-                  <div>
-                    <p className="text-xs font-semibold text-navy-900 dark:text-white">{s.name}</p>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Class {s.class}-{s.section}</p>
-                  </div>
-                  <span className="text-sm font-bold text-red-600">{s.percentage}%</span>
+
+          <div className="flex-1 space-y-2">
+            {lowAttendance.length === 0 ? (
+              <div className="flex items-center gap-2.5 p-2.5 sm:p-5 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10 sm:bg-transparent sm:border-0 sm:flex-col sm:text-center">
+                <div className="w-7 h-7 sm:w-11 sm:h-11 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0 sm:mx-auto sm:mb-2 shadow-[0_0_12px_rgba(16,185,129,0.15)]">
+                  <CheckCircle2 size={16} className="sm:w-5 sm:h-5" />
                 </div>
-              ))}
-              {lowAttendance.length > 5 && (
-                <button onClick={() => navigate('/reports')} className="w-full text-xs text-center text-brand-blue hover:underline pt-1 font-medium">
-                  +{lowAttendance.length - 5} more students
-                </button>
-              )}
-            </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-200">All students in good standing!</p>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">No attendance default alerts today.</p>
+                </div>
+              </div>
+            ) : (
+              lowAttendance.slice(0, 4).map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-[#111726]/80 border border-white/[0.06] hover:border-rose-500/30 transition-all"
+                >
+                  <div className="min-w-0 flex items-center gap-2 sm:gap-2.5">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-300 font-bold text-xs flex-shrink-0">
+                      {s.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">{s.name}</p>
+                      <p className="text-[10px] text-slate-400">Class {s.class}-{s.section}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs font-bold text-rose-400">{s.percentage}%</span>
+                    <button
+                      onClick={() => navigate('/messages')}
+                      className="p-1 rounded-lg bg-white/[0.04] hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+                      title="Send alert notice"
+                    >
+                      <MessageSquare size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {lowAttendance.length > 4 && (
+            <button
+              onClick={() => navigate('/reports')}
+              className="w-full mt-2 sm:mt-3 pt-2 text-xs text-center text-blue-400 hover:text-blue-300 border-t border-white/[0.06] font-medium cursor-pointer"
+            >
+              +{lowAttendance.length - 4} more students on watchlist
+            </button>
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="card">
-          <h2 className="text-sm font-bold text-navy-900 dark:text-white mb-4 flex items-center gap-2">
-            <Calendar size={16} className="text-brand-blue" /> Quick Actions
-          </h2>
-          <div className="space-y-3">
-            <button
-              onClick={() => navigate('/attendance')}
-              className="w-full flex items-center justify-between p-3.5 rounded-xl bg-brand-blue text-white hover:bg-brand-blue-light transition-all group"
-            >
-              <div className="text-left">
-                <p className="text-sm font-semibold">Take Today's Attendance</p>
-                <p className="text-xs text-blue-100">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        {/* Live School Noticeboard Widget */}
+        <div className="rounded-2xl bg-[#0B0F19]/80 border border-white/10 p-3 sm:p-5 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+          <div className="flex items-center justify-between mb-2.5 sm:mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                <Megaphone size={13} className="sm:w-3.5 sm:h-3.5" />
               </div>
-              <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
-            </button>
+              <h2 className="text-xs sm:text-sm font-bold text-white tracking-tight">Notice Board</h2>
+            </div>
             <button
-              onClick={() => navigate('/students')}
-              className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-navy-700 hover:bg-slate-100 dark:hover:bg-navy-600 transition-all group border border-slate-100 dark:border-navy-600"
+              onClick={() => navigate('/messages')}
+              className="text-[11px] text-blue-400 hover:text-blue-300 font-semibold flex items-center gap-1 cursor-pointer"
             >
-              <div className="text-left">
-                <p className="text-sm font-semibold text-navy-900 dark:text-white">Manage Students</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Add, edit or view students</p>
-              </div>
-              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+              <span>Hub</span>
+              <ArrowUpRight size={12} />
             </button>
-            <button
-              onClick={() => navigate('/reports')}
-              className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-navy-700 hover:bg-slate-100 dark:hover:bg-navy-600 transition-all group border border-slate-100 dark:border-navy-600"
-            >
-              <div className="text-left">
-                <p className="text-sm font-semibold text-navy-900 dark:text-white">View Reports</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Analytics & attendance charts</p>
+          </div>
+
+          <div className="flex-1 space-y-2 sm:space-y-2.5">
+            {recentAnnouncements.length === 0 ? (
+              <div className="flex items-center justify-between p-2.5 sm:p-5 rounded-xl bg-white/[0.02] border border-white/[0.05] sm:bg-transparent sm:border-0 sm:block sm:text-center">
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-300 font-medium">No recent announcements</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5 sm:hidden">Updates will appear here</p>
+                </div>
+                <button
+                  onClick={() => navigate('/messages')}
+                  className="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-all cursor-pointer flex-shrink-0 sm:mt-2 sm:inline-block sm:border-0 sm:bg-transparent sm:p-0 sm:hover:underline"
+                >
+                  Post notice
+                </button>
               </div>
-              <ChevronRight size={18} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-            </button>
+            ) : (
+              recentAnnouncements.map((msg) => (
+                <div
+                  key={msg.id}
+                  onClick={() => navigate('/messages')}
+                  className="p-2.5 sm:p-3 rounded-xl bg-[#111726]/80 hover:bg-[#161F34] border border-white/[0.06] transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      {msg.senderName || 'Principal'}
+                    </span>
+                    <span className="text-[10px] text-slate-500">
+                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-200 line-clamp-2 leading-relaxed group-hover:text-white transition-colors">
+                    {msg.text}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+
+          <button
+            onClick={() => navigate('/messages')}
+            className={`w-full mt-2 sm:mt-3 py-1.5 sm:py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-[11px] sm:text-xs font-semibold text-slate-300 hover:text-white transition-all text-center cursor-pointer ${recentAnnouncements.length === 0 ? 'hidden sm:block' : ''}`}
+          >
+            Open Messaging Center
+          </button>
+        </div>
+
+        {/* Quick Command Center */}
+        <div className="rounded-2xl bg-[#0B0F19]/80 border border-white/10 p-3 sm:p-5 backdrop-blur-xl shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <Sparkles size={13} className="sm:w-3.5 sm:h-3.5" />
+              </div>
+              <h2 className="text-xs sm:text-sm font-bold text-white tracking-tight">Quick Commands</h2>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={() => navigate('/attendance')}
+                className="w-full p-2.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-white flex items-center justify-between text-xs font-semibold transition-all group cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <ClipboardCheck size={15} className="text-blue-400" />
+                  Take Today's Attendance
+                </span>
+                <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              {role === 'admin' && (
+                <>
+                  <button
+                    onClick={() => navigate('/students')}
+                    className="w-full p-2.5 rounded-xl bg-[#111726]/80 hover:bg-[#161F34] border border-white/[0.06] text-slate-300 hover:text-white flex items-center justify-between text-xs font-semibold transition-all group cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Users size={15} className="text-emerald-400" />
+                      Manage Students Roster
+                    </span>
+                    <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/teachers')}
+                    className="w-full p-2.5 rounded-xl bg-[#111726]/80 hover:bg-[#161F34] border border-white/[0.06] text-slate-300 hover:text-white flex items-center justify-between text-xs font-semibold transition-all group cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <ShieldCheck size={15} className="text-purple-400" />
+                      Faculty Management
+                    </span>
+                    <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() => navigate('/reports')}
+                className="w-full p-2.5 rounded-xl bg-[#111726]/80 hover:bg-[#161F34] border border-white/[0.06] text-slate-300 hover:text-white flex items-center justify-between text-xs font-semibold transition-all group cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <BarChart3 size={15} className="text-cyan-400" />
+                  Generate Attendance Reports
+                </span>
+                <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05] text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Data Sync Status</span>
+            <span className="text-emerald-400 font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Real-time
+            </span>
           </div>
         </div>
       </div>

@@ -281,9 +281,79 @@ function generateAttendanceHistory(students) {
   return records;
 }
 
+export const initialTeachers = [
+  {
+    id: 'TCH001',
+    name: 'Mrs. Anjali Sharma',
+    email: 'anjali.sharma@school.edu',
+    class: '10',
+    section: 'A',
+    subject: 'Mathematics',
+    contact: '9876500001',
+    status: 'active',
+    createdAt: '2026-01-10T09:00:00.000Z',
+  },
+  {
+    id: 'TCH002',
+    name: 'Mr. Rajesh Kulkarni',
+    email: 'rajesh.kulkarni@school.edu',
+    class: '10',
+    section: 'B',
+    subject: 'Science',
+    contact: '9876500002',
+    status: 'active',
+    createdAt: '2026-01-10T09:00:00.000Z',
+  },
+  {
+    id: 'TCH003',
+    name: 'Mrs. Sunita Patil',
+    email: 'sunita.patil@school.edu',
+    class: '9',
+    section: 'A',
+    subject: 'English',
+    contact: '9876500003',
+    status: 'active',
+    createdAt: '2026-01-11T09:00:00.000Z',
+  },
+  {
+    id: 'TCH004',
+    name: 'Mr. Vikram Deshmukh',
+    email: 'vikram.deshmukh@school.edu',
+    class: '9',
+    section: 'B',
+    subject: 'Social Studies',
+    contact: '9876500004',
+    status: 'active',
+    createdAt: '2026-01-11T09:00:00.000Z',
+  },
+  {
+    id: 'TCH005',
+    name: 'Ms. Pooja Nair',
+    email: 'pooja.nair@school.edu',
+    class: '8',
+    section: 'A',
+    subject: 'Hindi',
+    contact: '9876500005',
+    status: 'active',
+    createdAt: '2026-01-12T09:00:00.000Z',
+  },
+  {
+    id: 'TCH006',
+    name: 'Mr. Amit Joshi',
+    email: 'amit.joshi@school.edu',
+    class: '8',
+    section: 'B',
+    subject: 'Computer Science',
+    contact: '9876500006',
+    status: 'active',
+    createdAt: '2026-01-12T09:00:00.000Z',
+  },
+];
+
 export function initializeSeedData() {
   const existingStudents = localStorage.getItem('attendify_students');
   const existingRecords = localStorage.getItem('attendify_attendance');
+  const existingTeachers = localStorage.getItem('attendify_teachers');
 
   if (!existingStudents) {
     const students = generateStudents();
@@ -291,9 +361,13 @@ export function initializeSeedData() {
   }
 
   if (!existingRecords) {
-    const students = JSON.parse(localStorage.getItem('attendify_students'));
+    const students = JSON.parse(localStorage.getItem('attendify_students') || '[]');
     const records = generateAttendanceHistory(students);
     localStorage.setItem('attendify_attendance', JSON.stringify(records));
+  }
+
+  if (!existingTeachers) {
+    localStorage.setItem('attendify_teachers', JSON.stringify(initialTeachers));
   }
 
   // Settings defaults
@@ -307,3 +381,4 @@ export function initializeSeedData() {
     }));
   }
 }
+

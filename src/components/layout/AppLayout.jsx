@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar, MobileDrawer } from './Sidebar';
 import Header from './Header';
 import ToastContainer from '../ui/ToastContainer';
@@ -7,9 +7,20 @@ import ToastContainer from '../ui/ToastContainer';
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  // Automatically collapse the sidebar only on the messages page
+  useEffect(() => {
+    if (location.pathname === '/messages') {
+      setCollapsed(true);
+    } else {
+      setCollapsed(false);
+    }
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-navy-900 overflow-hidden">
+    <div className="flex h-dvh bg-slate-50 dark:bg-[#070A12] overflow-hidden text-slate-900 dark:text-slate-100 max-w-full">
       {/* Desktop Sidebar */}
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
 
@@ -17,9 +28,9 @@ export default function AppLayout() {
       <MobileDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden min-h-0">
         <Header onMenuOpen={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 animate-fade-in">
+        <main className={`flex-1 min-h-0 w-full max-w-full min-w-0 ${location.pathname === '/messages' ? 'overflow-hidden p-0 flex flex-col' : 'overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:py-3.5 lg:px-6'} animate-fade-in`}>
           <Outlet />
         </main>
       </div>

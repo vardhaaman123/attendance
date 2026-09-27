@@ -6,33 +6,70 @@ import { useEffect } from 'react';
 import { initializeSeedData } from './data/seedData';
 
 import AppLayout from './components/layout/AppLayout';
+import RoleSelectorPage from './components/auth/RoleSelectorPage';
 import LoginPage from './components/auth/LoginPage';
+import TeacherLoginPage from './components/auth/TeacherLoginPage';
+import StudentLoginPage from './components/auth/StudentLoginPage';
+
+// Student pages
+import StudentDashboard from './components/student-dashboard/StudentDashboard';
+import StudentProfile from './components/student-dashboard/StudentProfile';
+import StudentMarks from './components/student-dashboard/StudentMarks';
+import StudentPassword from './components/student-dashboard/StudentPassword';
+
+
+
+// Staff pages
 import Dashboard from './components/dashboard/Dashboard';
 import TakeAttendance from './components/attendance/TakeAttendance';
 import AttendanceHistory from './components/attendance/AttendanceHistory';
 import StudentList from './components/students/StudentList';
 import Reports from './components/reports/Reports';
-import Classes from './components/classes/Classes';
+import Marks from './components/marks/Marks';
+import Messages from './components/messages/Messages';
 import Settings from './components/settings/Settings';
+import TeacherList from './components/teachers/TeacherList';
+import TeacherPassword from './components/teachers/TeacherPassword';
+
+
 
 function SeedInitializer({ children }) {
-  useEffect(() => {
-    initializeSeedData();
-  }, []);
+  useEffect(() => { initializeSeedData(); }, []);
   return children;
 }
 
-function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-navy-900">
+function LoadingScreen() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#070A12]">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-brand-blue/20 border-t-brand-blue rounded-full animate-spin" />
-        <p className="text-xs text-slate-500">Loading Attendify...</p>
+        <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+        <p className="text-xs text-slate-400">Loading Attendify...</p>
       </div>
     </div>
   );
-  if (!user) return <Navigate to="/login" replace />;
+}
+
+// Any logged-in user (admin, teacher, or student)
+function PrivateRoute({ children }) {
+  const { role, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (!role) return <Navigate to="/" replace />;
+  return children;
+}
+
+// Admin-only
+function AdminRoute({ children }) {
+  const { role, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
+// Redirect already-logged-in users away from login pages
+function GuestRoute({ children }) {
+  const { role, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (role) return <Navigate to={role === 'student' ? '/student-dashboard' : '/dashboard'} replace />;
   return children;
 }
 
@@ -44,25 +81,45 @@ export default function App() {
           <AppProvider>
             <BrowserRouter>
               <Routes>
-                <Route path="/login" element={<LoginPage />} />
+                {/* ── Public: Role selector ── */}
+                <Route path="/" element={<GuestRoute><RoleSelectorPage /></GuestRoute>} />
+
+                {/* ── Login routes ── */}
+                <Route path="/student-login" element={<GuestRoute><StudentLoginPage /></GuestRoute>} />
+                <Route path="/teacher-login" element={<GuestRoute><TeacherLoginPage /></GuestRoute>} />
+                <Route path="/admin-login"   element={<GuestRoute><LoginPage /></GuestRoute>} />
+                <Route path="/login"         element={<GuestRoute><LoginPage /></GuestRoute>} />
+
+                {/* ── All roles share the same AppLayout ── */}
                 <Route
                   path="/"
-                  element={
-                    <ProtectedRoute>
-                      <AppLayout />
-                    </ProtectedRoute>
-                  }
+                  element={<PrivateRoute><AppLayout /></PrivateRoute>}
                 >
-                  <Route index element={<Navigate to="/dashboard" replace />} />
-                  <Route path="dashboard" element={<Dashboard />} />
+                  {/* Student-only pages */}
+                  <Route path="student-dashboard" element={<StudentDashboard />} />
+                  <Route path="my-profile"        element={<StudentProfile />} />
+                  <Route path="my-marks"          element={<StudentMarks />} />
+                  <Route path="my-password"       element={<StudentPassword />} />
+
+
+                  {/* Teacher + Admin pages */}
+                  <Route path="dashboard"  element={<Dashboard />} />
                   <Route path="attendance" element={<TakeAttendance />} />
-                  <Route path="history" element={<AttendanceHistory />} />
-                  <Route path="students" element={<StudentList />} />
-                  <Route path="reports" element={<Reports />} />
-                  <Route path="classes" element={<Classes />} />
-                  <Route path="settings" element={<Settings />} />
+                  <Route path="history"           element={<AttendanceHistory />} />
+                  <Route path="reports"           element={<Reports />} />
+                  <Route path="marks"             element={<Marks />} />
+                  <Route path="messages"          element={<Messages />} />
+                  <Route path="teacher-password"  element={<TeacherPassword />} />
+
+
+
+                  {/* Admin-only */}
+                  <Route path="teachers" element={<AdminRoute><TeacherList /></AdminRoute>} />
+                  <Route path="students" element={<AdminRoute><StudentList /></AdminRoute>} />
+                  <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
                 </Route>
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </BrowserRouter>
           </AppProvider>
