@@ -12,7 +12,9 @@ import {
   browserSessionPersistence,
 } from 'firebase/auth';
 
-export const ALLOWED_ADMIN_EMAIL = 'ainapure290@gmail.com';
+// Set to null to allow any Google account to login as admin
+// Set to a specific email (e.g. 'ainapure290@gmail.com') to restrict access
+export const ALLOWED_ADMIN_EMAIL = null;
 
 const AuthContext = createContext({});
 
@@ -47,8 +49,8 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         const userEmail = (firebaseUser.email || '').trim().toLowerCase();
 
-        // Strict security enforcement: Only ALLOWED_ADMIN_EMAIL is permitted
-        if (userEmail !== ALLOWED_ADMIN_EMAIL) {
+        // If ALLOWED_ADMIN_EMAIL is set, only that email is permitted
+        if (ALLOWED_ADMIN_EMAIL && userEmail !== ALLOWED_ADMIN_EMAIL) {
           console.warn(`[Security Alert] Unauthorized login attempt: ${userEmail}. Signing out.`);
           try {
             await firebaseSignOut(auth);
@@ -91,8 +93,8 @@ export function AuthProvider({ children }) {
   const login = async (email, password, remember) => {
     const cleanEmail = (email || '').trim().toLowerCase();
 
-    // 1. Strict email whitelist check: Only ALLOWED_ADMIN_EMAIL
-    if (cleanEmail !== ALLOWED_ADMIN_EMAIL) {
+    // If ALLOWED_ADMIN_EMAIL is set, only that email can sign in
+    if (ALLOWED_ADMIN_EMAIL && cleanEmail !== ALLOWED_ADMIN_EMAIL) {
       return {
         success: false,
         error: `Access Denied: Only ${ALLOWED_ADMIN_EMAIL} is authorized to sign in.`,
@@ -109,10 +111,10 @@ export function AuthProvider({ children }) {
     // 2. Strict Firebase Authentication (No bypasses, no auto-registration of unknown users)
     try {
       await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
-      const userCredential = await signInWithEmailAndPassword(auth, ALLOWED_ADMIN_EMAIL, password);
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
 
       const verifiedEmail = (userCredential.user?.email || '').trim().toLowerCase();
-      if (verifiedEmail !== ALLOWED_ADMIN_EMAIL) {
+      if (ALLOWED_ADMIN_EMAIL && verifiedEmail !== ALLOWED_ADMIN_EMAIL) {
         await firebaseSignOut(auth);
         return {
           success: false,
@@ -148,14 +150,13 @@ export function AuthProvider({ children }) {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
         prompt: 'select_account',
-        login_hint: ALLOWED_ADMIN_EMAIL,
       });
 
       const result = await signInWithPopup(auth, provider);
       const signedInEmail = (result.user?.email || '').trim().toLowerCase();
 
-      // Strict security check: verify that the chosen Google account is ALLOWED_ADMIN_EMAIL
-      if (signedInEmail !== ALLOWED_ADMIN_EMAIL) {
+      // If ALLOWED_ADMIN_EMAIL is set, verify the Google account matches
+      if (ALLOWED_ADMIN_EMAIL && signedInEmail !== ALLOWED_ADMIN_EMAIL) {
         console.warn(`[Security Alert] Google account ${signedInEmail} rejected. Only ${ALLOWED_ADMIN_EMAIL} is allowed.`);
         await firebaseSignOut(auth);
         setUser(null);

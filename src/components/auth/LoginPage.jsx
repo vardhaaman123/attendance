@@ -75,7 +75,10 @@ export default function LoginPage() {
           <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-200 text-xs mb-4 shadow-sm">
             <ShieldCheck size={16} className="text-purple-400 flex-shrink-0" />
             <p className="leading-snug">
-              Protected Console • Only <span className="font-semibold text-white">{ALLOWED_ADMIN_EMAIL}</span> is authorized.
+              {ALLOWED_ADMIN_EMAIL
+                ? <>Protected Console • Only <span className="font-semibold text-white">{ALLOWED_ADMIN_EMAIL}</span> is authorized.</>
+                : <>Admin Console • Sign in with your Google account or email.</>
+              }
             </p>
           </div>
 
