@@ -27,11 +27,11 @@ function ExamModal({ open, exam, students, onSave, onClose }) {
   const [nameError, setNameError] = useState("");
   const availableClasses = useMemo(() => Array.from(new Set(students.map(s => String(s.class || '').trim()))).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [students]);
   const availableSections = useMemo(() => Array.from(new Set(students.filter(s => form.classFilter === "all" || String(s.class || '').trim() === String(form.classFilter || '').trim()).map(s => String(s.section || '').trim().toUpperCase()))).filter(Boolean).sort(), [students, form.classFilter]);
-  const filteredStudents = useMemo(() => students.filter(s => (form.classFilter === "all" || String(s.class || '').trim() === String(form.classFilter || '').trim()) && (form.sectionFilter === "all" || String(s.section || '').trim().toUpperCase() === String(form.sectionFilter || '').trim().toUpperCase())).sort((a, b) => a.name.localeCompare(b.name)), [students, form.classFilter, form.sectionFilter]);
+  const filteredStudents = useMemo(() => students.filter(s => (form.classFilter === "all" || String(s.class || '').trim() === String(form.classFilter || '').trim()) && (form.sectionFilter === "all" || String(s.section || '').trim().toUpperCase() === String(form.sectionFilter || '').trim().toUpperCase())).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''))), [students, form.classFilter, form.sectionFilter]);
   const displayedStudents = useMemo(() => {
     if (!studentSearch.trim()) return filteredStudents;
     const q = studentSearch.trim().toLowerCase();
-    return filteredStudents.filter(s => s.name.toLowerCase().includes(q) || String(s.rollNumber).includes(q));
+    return filteredStudents.filter(s => String(s.name || '').toLowerCase().includes(q) || String(s.rollNumber || '').includes(q));
   }, [filteredStudents, studentSearch]);
 
   useEffect(() => {
@@ -139,42 +139,57 @@ export default function Marks() {
   }, [students.length, refreshStudents]);
 
   const availableClasses = useMemo(() => Array.from(new Set(students.map(s => String(s.class || '').trim()))).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [students]);
-  const filteredExams = useMemo(() => exams.filter(e => { const ms = !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.subject.toLowerCase().includes(search.toLowerCase()); const msu = filterSubject === "all" || e.subject === filterSubject; const mt = filterExamType === "all" || e.examType === filterExamType; const mc = filterClass === "all" || e.classFilter === filterClass || e.classFilter === "all"; return ms && msu && mt && mc; }).sort((a, b) => new Date(b.date) - new Date(a.date)), [exams, search, filterSubject, filterExamType, filterClass]);
-  const handleSaveExam = (form) => {
-    if (examModal.exam) {
-      const u = exams.map(e => e.id === examModal.exam.id ? { ...e, ...form } : e);
-      saveExams(u);
-      if (viewExam?.id === examModal.exam.id) setViewExam({ ...examModal.exam, ...form });
-      addToast("Exam marks updated.", "success");
-    } else {
-      const ne = { ...form, id: `EXAM_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, createdAt: new Date().toISOString() };
-      saveExams([ne, ...exams]);
-      addToast("Exam added.", "success");
+  const filteredExams = useMemo(() => exams.filter(e => { const ms = !search || String(e.name || '').toLowerCase().includes(search.toLowerCase()) || String(e.subject || '').toLowerCase().includes(search.toLowerCase()); const msu = filterSubject === "all" || e.subject === filterSubject; const mt = filterExamType === "all" || e.examType === filterExamType; const mc = filterClass === "all" || e.classFilter === filterClass || e.classFilter === "all"; return ms && msu && mt && mc; }).sort((a, b) => new Date(b.date) - new Date(a.date)), [exams, search, filterSubject, filterExamType, filterClass]);
+  const handleSaveExam = async (form) => {
+    try {
+      if (examModal.exam) {
+        const u = exams.map(e => e.id === examModal.exam.id ? { ...e, ...form } : e);
+        await saveExams(u);
+        if (viewExam?.id === examModal.exam.id) setViewExam({ ...examModal.exam, ...form });
+        addToast("Exam marks updated.", "success");
+      } else {
+        const ne = { ...form, id: `EXAM_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, createdAt: new Date().toISOString() };
+        await saveExams([ne, ...exams]);
+        addToast("Exam added.", "success");
+      }
+    } catch (err) {
+      console.error('Failed to save exam:', err);
+      addToast('Failed to save exam. Please try again.', 'error');
     }
     setExamModal({ open: false, exam: null });
   };
-  const handleDelete = (exam) => {
-    if (deleteExam) {
-      deleteExam(exam.id || exam._docId);
-    } else {
-      saveExams(exams.filter(e => e.id !== exam.id));
+  const handleDelete = async (exam) => {
+    try {
+      if (deleteExam) {
+        await deleteExam(exam.id || exam._docId);
+      } else {
+        await saveExams(exams.filter(e => e.id !== exam.id));
+      }
+      addToast(`"${exam.name}" deleted.`, "info");
+    } catch (err) {
+      console.error('Failed to delete exam:', err);
+      addToast('Failed to delete exam.', 'error');
     }
-    addToast(`"${exam.name}" deleted.`, "info");
     setDeleteTarget(null);
     if (viewExam?.id === exam.id) setViewExam(null);
   };
-  const handleClearAll = () => {
-    if (clearAllExams) {
-      clearAllExams();
-    } else {
-      saveExams([]);
+  const handleClearAll = async () => {
+    try {
+      if (clearAllExams) {
+        await clearAllExams();
+      } else {
+        await saveExams([]);
+      }
+      addToast("All exam records deleted successfully.", "info");
+    } catch (err) {
+      console.error('Failed to clear exams:', err);
+      addToast('Failed to delete all exams.', 'error');
     }
-    addToast("All exam records deleted successfully.", "info");
     setClearAllOpen(false);
     if (viewExam) setViewExam(null);
   };
   const examStats = (exam) => { const arr = Object.values(exam.marks || {}).filter(m => m !== "" && m !== undefined && !isNaN(m)).map(Number); if (!arr.length) return { avg: 0, highest: 0, lowest: 0, passRate: 0, appeared: 0 }; const avg = Math.round(arr.reduce((a, b) => a + b, 0) / arr.length); const thr = exam.maxMarks * 0.33; return { avg, highest: Math.max(...arr), lowest: Math.min(...arr), passRate: Math.round((arr.filter(m => m >= thr).length / arr.length) * 100), appeared: arr.length }; };
-  const viewStudents = useMemo(() => !viewExam ? [] : students.filter(s => { const hm = viewExam.marks?.[s.id] !== undefined && viewExam.marks?.[s.id] !== ""; const mc = viewExam.classFilter === "all" || String(s.class || '').trim() === String(viewExam.classFilter || '').trim(); const ms = viewExam.sectionFilter === "all" || String(s.section || '').trim().toUpperCase() === String(viewExam.sectionFilter || '').trim().toUpperCase(); const mq = !viewSearch || s.name.toLowerCase().includes(viewSearch.toLowerCase()) || String(s.rollNumber).includes(viewSearch); return hm && mc && ms && mq; }).sort((a, b) => Number(viewExam.marks[b.id] ?? -1) - Number(viewExam.marks[a.id] ?? -1)), [viewExam, students, viewSearch]);
+  const viewStudents = useMemo(() => !viewExam ? [] : students.filter(s => { const hm = viewExam.marks?.[s.id] !== undefined && viewExam.marks?.[s.id] !== ""; const mc = viewExam.classFilter === "all" || String(s.class || '').trim() === String(viewExam.classFilter || '').trim(); const ms = viewExam.sectionFilter === "all" || String(s.section || '').trim().toUpperCase() === String(viewExam.sectionFilter || '').trim().toUpperCase(); const mq = !viewSearch || String(s.name || '').toLowerCase().includes(viewSearch.toLowerCase()) || String(s.rollNumber).includes(viewSearch); return hm && mc && ms && mq; }).sort((a, b) => Number(viewExam.marks[b.id] ?? -1) - Number(viewExam.marks[a.id] ?? -1)), [viewExam, students, viewSearch]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-5 animate-fade-in">

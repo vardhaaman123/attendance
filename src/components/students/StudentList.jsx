@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Eye, Download, Upload, MoreVertical, Key, Sparkles, RefreshCw, CheckSquare } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Eye, Download, Upload, MoreVertical, Key, Sparkles, RefreshCw } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { calcStudentAttendancePercentage } from '../../utils/attendanceCalc';
@@ -23,39 +23,6 @@ function ConfirmDeleteModal({ open, student, onConfirm, onClose }) {
         <div className="flex gap-3 justify-end">
           <button onClick={onClose} className="btn-secondary">Cancel</button>
           <button onClick={onConfirm} className="btn-danger">Delete Student</button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function ConfirmDeleteSelectedStudentsModal({ open, count, onConfirm, onClose, isDeleting }) {
-  return (
-    <Modal open={open} onClose={onClose} title="Delete Selected Students" maxWidth="max-w-md">
-      <div className="space-y-4">
-        <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 text-xs flex items-start gap-2.5">
-          <Trash2 size={16} className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-semibold text-red-600 dark:text-red-200">Warning: Permanent Deletion</p>
-            <p className="leading-relaxed">
-              Are you sure you want to delete <strong>{count} selected {count === 1 ? 'student' : 'students'}</strong>?
-              Their attendance history, marks, and login credentials will be permanently removed.
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          This action cannot be undone. Are you sure you want to proceed?
-        </p>
-        <div className="flex gap-3 justify-end pt-2">
-          <button onClick={onClose} disabled={isDeleting} className="btn-secondary">Cancel</button>
-          <button
-            onClick={onConfirm}
-            disabled={isDeleting || count === 0}
-            className="btn-danger flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <Trash2 size={14} />
-            {isDeleting ? 'Deleting...' : `Delete ${count} ${count === 1 ? 'Student' : 'Students'}`}
-          </button>
         </div>
       </div>
     </Modal>
@@ -145,7 +112,7 @@ function DeleteClassModal({ open, selectedClass, availableClasses, students, onC
 }
 
 export default function StudentList() {
-  const { students, saveStudents, deleteStudent, deleteStudents, deleteAllStudents, deleteClass, attendanceRecords, addToast, refreshStudents, recentlyUpdatedStudentId } = useApp();
+  const { students, saveStudents, deleteStudent, deleteClass, attendanceRecords, addToast, refreshStudents, recentlyUpdatedStudentId } = useApp();
   const { role, user, activeCollegeId } = useAuth();
   const isTeacher = role === 'teacher';
   const teacherClass = isTeacher && user?.class ? String(user.class) : null;
@@ -163,40 +130,6 @@ export default function StudentList() {
   const [activeMenuStudent, setActiveMenuStudent] = useState(null);
   const [menuPosition, setMenuPosition] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
-  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleToggleSelectStudent = (id) => {
-    setSelectedStudentIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleToggleSelectAll = () => {
-    const filteredIds = filtered.map(s => s.id);
-    const allSelected = filteredIds.length > 0 && filteredIds.every(id => selectedStudentIds.includes(id));
-    if (allSelected) {
-      setSelectedStudentIds(prev => prev.filter(id => !filteredIds.includes(id)));
-    } else {
-      setSelectedStudentIds(prev => Array.from(new Set([...prev, ...filteredIds])));
-    }
-  };
-
-  const handleConfirmBulkDelete = async () => {
-    if (selectedStudentIds.length === 0) return;
-    setIsDeleting(true);
-    try {
-      const count = await deleteStudents(selectedStudentIds);
-      addToast(`Successfully deleted ${count} ${count === 1 ? 'student' : 'students'}.`, 'info');
-      setSelectedStudentIds([]);
-      setBulkDeleteModalOpen(false);
-    } catch {
-      addToast('Failed to delete selected students.', 'error');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const handleToggleMenu = (e, student) => {
     e.stopPropagation();
@@ -279,19 +212,19 @@ export default function StudentList() {
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(s =>
-        s.name.toLowerCase().includes(q) ||
-        s.rollNumber.includes(q) ||
-        (s.parentName || '').toLowerCase().includes(q)
+        String(s.name || '').toLowerCase().includes(q) ||
+        String(s.rollNumber || '').includes(q) ||
+        String(s.parentName || '').toLowerCase().includes(q)
       );
     }
     if (classFilter !== 'all') list = list.filter(s => String(s.class) === String(classFilter));
     if (sectionFilter !== 'all') list = list.filter(s => String(s.section).toUpperCase() === String(sectionFilter).toUpperCase());
-    return list.sort((a, b) => a.name.localeCompare(b.name));
+    return [...list].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }, [students, search, classFilter, sectionFilter]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await deleteStudent(deleteTarget.id);
+    await deleteStudent(deleteTarget.id || deleteTarget._docId);
     addToast(`${deleteTarget.name} has been removed.`, 'info');
     setDeleteTarget(null);
   };
@@ -333,7 +266,7 @@ export default function StudentList() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -391,7 +324,7 @@ export default function StudentList() {
           return;
         }
 
-        saveStudents([...students, ...newStudents]);
+        await saveStudents([...students, ...newStudents]);
         addToast(`${newStudents.length} students imported successfully.`, 'success');
       } catch (err) {
         console.error('Import error:', err);
@@ -464,57 +397,21 @@ export default function StudentList() {
             <Download size={15} />
             <span className="hidden sm:inline">Export</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setDeleteClassModalOpen(true)}
-            disabled={students.length === 0}
-            className="btn-secondary text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 border-rose-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            title={isTeacher ? "Delete all students or class" : "Delete a class or all classes"}
-          >
-            <Trash2 size={15} />
-            <span className="hidden sm:inline">{isTeacher ? 'Delete Class / All' : 'Delete All / Class'}</span>
-          </button>
+          {!isTeacher && (
+            <button
+              onClick={() => setDeleteClassModalOpen(true)}
+              className="btn-secondary text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border-rose-500/20 cursor-pointer"
+              title="Delete a class or all classes"
+            >
+              <Trash2 size={15} />
+              <span className="hidden sm:inline">Delete Class</span>
+            </button>
+          )}
           <button onClick={() => setAddOpen(true)} className="btn-primary">
             <Plus size={15} /> {isTeacher ? 'Enroll Student' : 'Add Student'}
           </button>
         </div>
       </div>
-
-      {/* Bulk Selection Bar */}
-      {selectedStudentIds.length > 0 && (
-        <div className="rounded-2xl p-3 sm:p-4 bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-3 animate-slide-up shadow-lg">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 flex-shrink-0">
-              <CheckSquare size={16} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
-                {selectedStudentIds.length} {selectedStudentIds.length === 1 ? 'Student' : 'Students'} Selected
-              </p>
-              <p className="text-[11px] text-rose-600 dark:text-rose-300/80 hidden sm:block">
-                Apply bulk actions to selected enrolled students
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setSelectedStudentIds([])}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={() => setBulkDeleteModalOpen(true)}
-              className="btn-danger py-1.5 px-3.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
-            >
-              <Trash2 size={14} />
-              Delete Selected ({selectedStudentIds.length})
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Quick Class Switcher for Teachers */}
       {isTeacher && teacherClass && (
@@ -611,7 +508,7 @@ export default function StudentList() {
               {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
             </CustomSelect>
           </div>
-          {classFilter !== 'all' && (
+          {!isTeacher && classFilter !== 'all' && (
             <button
               onClick={() => setDeleteClassModalOpen(true)}
               className="px-3 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
@@ -630,22 +527,6 @@ export default function StudentList() {
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 dark:bg-[#111726]/80 border-b border-slate-100 dark:border-white/10">
-                <th className="w-10 px-3.5 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={filtered.length > 0 && filtered.every(s => selectedStudentIds.includes(s.id))}
-                    ref={el => {
-                      if (el) {
-                        const someSelected = filtered.some(s => selectedStudentIds.includes(s.id));
-                        const allSelected = filtered.length > 0 && filtered.every(s => selectedStudentIds.includes(s.id));
-                        el.indeterminate = someSelected && !allSelected;
-                      }
-                    }}
-                    onChange={handleToggleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-emerald-600 focus:ring-emerald-500/30 cursor-pointer accent-emerald-600"
-                    title="Select all filtered students"
-                  />
-                </th>
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Roll No</th>
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Student</th>
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3 hidden md:table-cell">Class</th>
@@ -657,7 +538,7 @@ export default function StudentList() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
+                  <td colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
                     No students found.
                   </td>
                 </tr>
@@ -668,26 +549,16 @@ export default function StudentList() {
                     recentlyUpdatedStudentId === student._docId ||
                     recentlyUpdatedStudentId === String(student.rollNumber).toLowerCase()
                   );
-                  const stats = calcStudentAttendancePercentage(student.id, attendanceRecords);
+                  const stats = calcStudentAttendancePercentage(student, attendanceRecords);
                   const pct = stats.percentage;
                   const pctClass = pct >= 85 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : pct >= 75 ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-rose-500/15 text-rose-400 border-rose-500/30';
                   return (
                     <tr
                       key={student.id}
                       className={`border-b border-slate-100 dark:border-white/[0.06] last:border-0 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-all ${
-                        selectedStudentIds.includes(student.id)
-                          ? 'bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12]'
-                          : isRecentlyUpdated ? 'bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12] ring-1 ring-emerald-500/40' : ''
+                        isRecentlyUpdated ? 'bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12] ring-1 ring-emerald-500/40' : ''
                       }`}
                     >
-                      <td className="w-10 px-3.5 py-3 text-center" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedStudentIds.includes(student.id)}
-                          onChange={() => handleToggleSelectStudent(student.id)}
-                          className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-emerald-600 focus:ring-emerald-500/30 cursor-pointer accent-emerald-600"
-                        />
-                      </td>
                       <td className="px-4 py-3">
                         <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#111726] border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-md">
                           {student.rollNumber}
@@ -772,7 +643,7 @@ export default function StudentList() {
               recentlyUpdatedStudentId === student._docId ||
               recentlyUpdatedStudentId === String(student.rollNumber).toLowerCase()
             );
-            const stats = calcStudentAttendancePercentage(student.id, attendanceRecords);
+            const stats = calcStudentAttendancePercentage(student, attendanceRecords);
             const pct = stats.percentage;
             const pctClass = pct >= 85 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' : pct >= 75 ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' : 'bg-rose-500/15 text-rose-400 border-rose-500/30';
 
@@ -780,20 +651,12 @@ export default function StudentList() {
               <div
                 key={student.id}
                 className={`rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-3.5 sm:p-4 shadow-sm dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl relative transition-all ${
-                  selectedStudentIds.includes(student.id)
-                    ? 'ring-2 ring-emerald-500/60 bg-emerald-500/[0.06] dark:bg-emerald-500/[0.08]'
-                    : isRecentlyUpdated ? 'ring-2 ring-emerald-500/50 bg-emerald-500/[0.04]' : ''
+                  isRecentlyUpdated ? 'ring-2 ring-emerald-500/50 bg-emerald-500/[0.04]' : ''
                 }`}
               >
                 {/* Header row: Avatar, Name, Roll No, Class-Section, Attendance %, 3-dots Menu */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <input
-                      type="checkbox"
-                      checked={selectedStudentIds.includes(student.id)}
-                      onChange={() => handleToggleSelectStudent(student.id)}
-                      className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-emerald-600 focus:ring-emerald-500/30 cursor-pointer accent-emerald-600 flex-shrink-0"
-                    />
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-xs"
                       style={{ background: `hsl(${(student.rollNumber.charCodeAt(0) * 47) % 360}, 60%, 55%)` }}
@@ -943,13 +806,6 @@ export default function StudentList() {
         student={deleteTarget}
         onConfirm={handleDelete}
         onClose={() => setDeleteTarget(null)}
-      />
-      <ConfirmDeleteSelectedStudentsModal
-        open={bulkDeleteModalOpen}
-        count={selectedStudentIds.length}
-        onConfirm={handleConfirmBulkDelete}
-        onClose={() => setBulkDeleteModalOpen(false)}
-        isDeleting={isDeleting}
       />
       <DeleteClassModal
         open={deleteClassModalOpen}

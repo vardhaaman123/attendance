@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BookOpen, Award, TrendingUp, BarChart3, Check, AlertCircle, Clock } from "lucide-react";
+import { BookOpen, Award, TrendingUp, BarChart3, Check, AlertCircle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useApp } from "../../context/AppContext";
 import { filterValidExams } from "../../utils/marksUtils";
@@ -78,8 +78,8 @@ export default function StudentMarks() {
           <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <BookOpen size={22} className="text-blue-400" /> My Marks
           </h1>
-          <span className="inline-flex items-center gap-1 text-[11px] text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 font-medium">
-            <Clock size={11} /> Auto-deleted after 7 days
+          <span className="inline-flex items-center gap-1 text-[11px] text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-medium">
+            <Award size={11} /> Official Academic Record
           </span>
         </div>
         <p className="text-xs text-slate-400 mt-0.5">

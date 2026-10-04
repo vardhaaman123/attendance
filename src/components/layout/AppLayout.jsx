@@ -6,18 +6,28 @@ import ToastContainer from '../ui/ToastContainer';
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [userCollapsed, setUserCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
-  // Automatically collapse the sidebar only on the messages page
+  // Automatically collapse the sidebar on messages page to give full room,
+  // but preserve the user's collapse preference across other pages
   useEffect(() => {
     if (location.pathname === '/messages') {
       setCollapsed(true);
     } else {
-      setCollapsed(false);
+      setCollapsed(userCollapsed);
     }
     setMobileOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, userCollapsed]);
+
+  const handleToggleCollapse = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      setUserCollapsed(next);
+      return next;
+    });
+  };
 
   // Prevent back-forward cache (bfcache) from exposing protected screens after logout
   useEffect(() => {
@@ -36,7 +46,7 @@ export default function AppLayout() {
   return (
     <div className="flex h-dvh bg-slate-50 dark:bg-[#070A12] overflow-hidden text-slate-900 dark:text-slate-100 max-w-full">
       {/* Desktop Sidebar */}
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
+      <Sidebar collapsed={collapsed} onToggle={handleToggleCollapse} />
 
       {/* Mobile Drawer */}
       <MobileDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} />

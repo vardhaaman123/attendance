@@ -119,7 +119,7 @@ export default function AddEditTeacherModal({ open, teacher, onClose }) {
     setSaving(true);
     try {
       if (teacher) {
-        await updateTeacher(teacher.id, payload);
+        await updateTeacher(teacher.id || teacher._docId, payload);
         addToast(`Teacher ${payload.name} updated successfully.`, 'success');
       } else {
         await addTeacher(payload);

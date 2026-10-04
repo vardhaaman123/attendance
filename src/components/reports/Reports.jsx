@@ -55,7 +55,7 @@ export default function Reports() {
           { label: 'Weekly Avg', value: `${avgWeekly}%`, sub: 'Last 5 working days', color: 'text-blue-600 dark:text-blue-400', glow: 'dark:shadow-[0_0_20px_rgba(59,130,246,0.1)]' },
           { label: 'Monthly Avg', value: `${avgMonthly}%`, sub: 'Last 6 months', color: 'text-emerald-600 dark:text-emerald-400', glow: 'dark:shadow-[0_0_20px_rgba(16,185,129,0.1)]' },
           { label: 'Low Attendance', value: lowAttendance.length, sub: 'Below 75% threshold', color: 'text-rose-600 dark:text-rose-400', glow: 'dark:shadow-[0_0_20px_rgba(244,63,94,0.1)]' },
-          { label: 'Total Records', value: Object.keys(attendanceRecords).length, sub: 'Saved sessions', color: 'text-amber-600 dark:text-amber-400', glow: 'dark:shadow-[0_0_20px_rgba(245,158,11,0.1)]' },
+          { label: 'Total Records', value: Object.keys(attendanceRecords || {}).length, sub: 'Saved sessions', color: 'text-amber-600 dark:text-amber-400', glow: 'dark:shadow-[0_0_20px_rgba(245,158,11,0.1)]' },
         ].map(({ label, value, sub, color, glow }) => (
           <div key={label} className={`rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200/80 dark:border-white/10 p-5 backdrop-blur-xl shadow-sm dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] ${glow} relative overflow-hidden group hover:scale-[1.02] transition-all duration-300`}>
             <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent dark:via-blue-400/40 opacity-0 group-hover:opacity-100 transition-opacity" />

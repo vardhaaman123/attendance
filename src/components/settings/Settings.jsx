@@ -40,16 +40,18 @@ export default function Settings() {
   const [profilePrincipal, setProfilePrincipal] = useState(effectivePrincipal);
   const [profileEmail, setProfileEmail] = useState(adminEmail);
 
-  useEffect(() => {
-    setProfileCollege(getEffectiveCollege());
-    setProfilePrincipal(getEffectivePrincipal());
-    setProfileEmail(user?.email || settings.adminEmail || '');
-  }, [user, settings]);
-
   const hasProfileChanges =
     profileCollege.trim() !== effectiveCollege.trim() ||
     profilePrincipal.trim() !== effectivePrincipal.trim() ||
     profileEmail.trim().toLowerCase() !== adminEmail.trim().toLowerCase();
+
+  useEffect(() => {
+    if (!hasProfileChanges) {
+      setProfileCollege(getEffectiveCollege());
+      setProfilePrincipal(getEffectivePrincipal());
+      setProfileEmail(user?.email || settings.adminEmail || '');
+    }
+  }, [user, settings, hasProfileChanges]);
 
   // Institution password confirmation modal states
   const [institutionModalOpen, setInstitutionModalOpen] = useState(false);

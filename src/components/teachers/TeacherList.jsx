@@ -15,7 +15,6 @@ import {
   BookMarked,
   Key,
   RefreshCw,
-  CheckSquare,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -46,74 +45,8 @@ function ConfirmDeleteTeacherModal({ open, teacher, onConfirm, onClose }) {
   );
 }
 
-function ConfirmDeleteSelectedTeachersModal({ open, count, onConfirm, onClose, isDeleting }) {
-  return (
-    <Modal open={open} onClose={onClose} title="Delete Selected Teachers" maxWidth="max-w-md">
-      <div className="space-y-4">
-        <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 text-xs flex items-start gap-2.5">
-          <Trash2 size={16} className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-semibold text-red-600 dark:text-red-200">Warning: Permanent Deletion</p>
-            <p className="leading-relaxed">
-              Are you sure you want to delete <strong>{count} selected {count === 1 ? 'teacher' : 'teachers'}</strong>?
-              Their login credentials and portal access will be permanently removed.
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          This action cannot be undone. Are you sure you want to proceed?
-        </p>
-        <div className="flex gap-3 justify-end pt-2">
-          <button onClick={onClose} disabled={isDeleting} className="btn-secondary">Cancel</button>
-          <button
-            onClick={onConfirm}
-            disabled={isDeleting || count === 0}
-            className="btn-danger flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <Trash2 size={14} />
-            {isDeleting ? 'Deleting...' : `Delete ${count} ${count === 1 ? 'Teacher' : 'Teachers'}`}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function ConfirmDeleteAllTeachersModal({ open, totalCount, onConfirm, onClose, isDeleting }) {
-  return (
-    <Modal open={open} onClose={onClose} title="Delete All Teachers" maxWidth="max-w-md">
-      <div className="space-y-4">
-        <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 text-xs flex items-start gap-2.5">
-          <Trash2 size={18} className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-bold text-red-600 dark:text-red-200">Danger: Wipe All Faculty Accounts</p>
-            <p className="leading-relaxed">
-              This will permanently delete <strong>ALL {totalCount} teachers</strong> registered in the institution.
-              All teacher logins will be immediately revoked.
-            </p>
-          </div>
-        </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Please confirm you want to remove all faculty accounts. This action cannot be reversed.
-        </p>
-        <div className="flex gap-3 justify-end pt-2">
-          <button onClick={onClose} disabled={isDeleting} className="btn-secondary">Cancel</button>
-          <button
-            onClick={onConfirm}
-            disabled={isDeleting || totalCount === 0}
-            className="btn-danger flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <Trash2 size={14} />
-            {isDeleting ? 'Deleting All...' : `Delete All Teachers (${totalCount})`}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 export default function TeacherList() {
-  const { teachers, deleteTeacher, deleteTeachers, deleteAllTeachers, addToast, students, saveTeachers, refreshTeachers, recentlyUpdatedTeacherId } = useApp();
+  const { teachers, deleteTeacher, addToast, students, saveTeachers, refreshTeachers, recentlyUpdatedTeacherId } = useApp();
   const { user, activeCollegeId } = useAuth();
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
@@ -126,55 +59,6 @@ export default function TeacherList() {
   const [menuPosition, setMenuPosition] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selectedTeacherIds, setSelectedTeacherIds] = useState([]);
-  const [bulkDeleteModalOpen, setBulkDeleteModalOpen] = useState(false);
-  const [deleteAllModalOpen, setDeleteAllModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleToggleSelectTeacher = (id) => {
-    setSelectedTeacherIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  const handleToggleSelectAll = () => {
-    const filteredIds = filtered.map(t => t.id);
-    const allSelected = filteredIds.length > 0 && filteredIds.every(id => selectedTeacherIds.includes(id));
-    if (allSelected) {
-      setSelectedTeacherIds(prev => prev.filter(id => !filteredIds.includes(id)));
-    } else {
-      setSelectedTeacherIds(prev => Array.from(new Set([...prev, ...filteredIds])));
-    }
-  };
-
-  const handleConfirmBulkDelete = async () => {
-    if (selectedTeacherIds.length === 0) return;
-    setIsDeleting(true);
-    try {
-      const count = await deleteTeachers(selectedTeacherIds);
-      addToast(`Successfully deleted ${count} ${count === 1 ? 'teacher' : 'teachers'}.`, 'info');
-      setSelectedTeacherIds([]);
-      setBulkDeleteModalOpen(false);
-    } catch {
-      addToast('Failed to delete selected teachers.', 'error');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleConfirmDeleteAll = async () => {
-    setIsDeleting(true);
-    try {
-      const count = await deleteAllTeachers();
-      addToast(`All ${count} teachers have been deleted.`, 'info');
-      setSelectedTeacherIds([]);
-      setDeleteAllModalOpen(false);
-    } catch {
-      addToast('Failed to delete teachers.', 'error');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const handleToggleMenu = (e, teacher) => {
     e.stopPropagation();
@@ -233,21 +117,26 @@ export default function TeacherList() {
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(t =>
-        t.name.toLowerCase().includes(q) ||
-        t.email.toLowerCase().includes(q) ||
-        (t.subject || '').toLowerCase().includes(q) ||
-        (t.contact || '').includes(q)
+        String(t.name || '').toLowerCase().includes(q) ||
+        String(t.email || '').toLowerCase().includes(q) ||
+        String(t.subject || '').toLowerCase().includes(q) ||
+        String(t.contact || '').includes(q)
       );
     }
-    if (classFilter !== 'all') list = list.filter(t => String(t.class) === classFilter);
-    if (sectionFilter !== 'all') list = list.filter(t => t.section.toUpperCase() === sectionFilter.toUpperCase());
-    return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (classFilter !== 'all') list = list.filter(t => String(t.class) === String(classFilter));
+    if (sectionFilter !== 'all') list = list.filter(t => String(t.section || '').toUpperCase() === String(sectionFilter).toUpperCase());
+    return [...list].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }, [teachers, search, classFilter, sectionFilter]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteTarget) return;
-    deleteTeacher(deleteTarget.id);
-    addToast(`Teacher ${deleteTarget.name} has been removed.`, 'info');
+    try {
+      await deleteTeacher(deleteTarget.id || deleteTarget._docId);
+      addToast(`Teacher ${deleteTarget.name} has been removed.`, 'info');
+    } catch (err) {
+      console.error('Failed to delete teacher:', err);
+      addToast('Failed to delete teacher. Please try again.', 'error');
+    }
     setDeleteTarget(null);
   };
 
@@ -278,7 +167,7 @@ export default function TeacherList() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -362,7 +251,7 @@ export default function TeacherList() {
           return;
         }
 
-        saveTeachers([...teachers, ...newTeachers]);
+        await saveTeachers([...teachers, ...newTeachers]);
         const msg = duplicateCount > 0
           ? `${newTeachers.length} teachers imported successfully (${duplicateCount} duplicate skipped).`
           : `${newTeachers.length} teachers imported successfully from Excel.`;
@@ -417,57 +306,11 @@ export default function TeacherList() {
               onChange={handleImportExcel}
             />
           </label>
-          <button
-            type="button"
-            onClick={() => setDeleteAllModalOpen(true)}
-            disabled={teachers.length === 0}
-            className="btn-secondary text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 border-rose-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Delete all teachers"
-          >
-            <Trash2 size={15} />
-            <span className="hidden sm:inline">Delete All</span>
-          </button>
           <button onClick={() => setAddOpen(true)} className="btn-primary">
             <Plus size={15} /> Add Teacher
           </button>
         </div>
       </div>
-
-      {/* Bulk Selection Bar */}
-      {selectedTeacherIds.length > 0 && (
-        <div className="rounded-2xl p-3 sm:p-4 bg-rose-500/10 border border-rose-500/30 flex items-center justify-between gap-3 animate-slide-up shadow-lg">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400 flex-shrink-0">
-              <CheckSquare size={16} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
-                {selectedTeacherIds.length} {selectedTeacherIds.length === 1 ? 'Teacher' : 'Teachers'} Selected
-              </p>
-              <p className="text-[11px] text-rose-600 dark:text-rose-300/80 hidden sm:block">
-                Apply bulk actions to selected faculty members
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setSelectedTeacherIds([])}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={() => setBulkDeleteModalOpen(true)}
-              className="btn-danger py-1.5 px-3.5 text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
-            >
-              <Trash2 size={14} />
-              Delete Selected ({selectedTeacherIds.length})
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Summary stats - Responsive 2-col on mobile, 4-col on desktop */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
@@ -562,22 +405,6 @@ export default function TeacherList() {
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 dark:bg-[#111726]/80 border-b border-slate-100 dark:border-white/10">
-                <th className="w-10 px-3.5 py-3 text-center">
-                  <input
-                    type="checkbox"
-                    checked={filtered.length > 0 && filtered.every(t => selectedTeacherIds.includes(t.id))}
-                    ref={el => {
-                      if (el) {
-                        const someSelected = filtered.some(t => selectedTeacherIds.includes(t.id));
-                        const allSelected = filtered.length > 0 && filtered.every(t => selectedTeacherIds.includes(t.id));
-                        el.indeterminate = someSelected && !allSelected;
-                      }
-                    }}
-                    onChange={handleToggleSelectAll}
-                    className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-purple-600 focus:ring-purple-500/30 cursor-pointer accent-purple-600"
-                    title="Select all filtered teachers"
-                  />
-                </th>
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Teacher</th>
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Email</th>
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Class & Division</th>
@@ -589,7 +416,7 @@ export default function TeacherList() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
+                  <td colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
                     No teachers found matching your filters.
                   </td>
                 </tr>
@@ -601,21 +428,11 @@ export default function TeacherList() {
                     <tr
                       key={teacher.id}
                       className={`border-b border-slate-100 dark:border-white/[0.06] last:border-0 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-all duration-300 ${
-                        selectedTeacherIds.includes(teacher.id)
-                          ? 'bg-purple-500/[0.08] dark:bg-purple-500/[0.12]'
-                          : isRecentlyUpdated
+                        isRecentlyUpdated
                           ? 'bg-emerald-500/10 dark:bg-emerald-500/[0.12] ring-1 ring-emerald-500/30'
                           : ''
                       }`}
                     >
-                      <td className="w-10 px-3.5 py-3 text-center" onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedTeacherIds.includes(teacher.id)}
-                          onChange={() => handleToggleSelectTeacher(teacher.id)}
-                          className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-purple-600 focus:ring-purple-500/30 cursor-pointer accent-purple-600"
-                        />
-                      </td>
                       {/* Teacher name + initials avatar */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -711,22 +528,12 @@ export default function TeacherList() {
               <div
                 key={teacher.id}
                 className={`rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-3 sm:p-4 shadow-sm dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl relative transition-all ${
-                  selectedTeacherIds.includes(teacher.id)
-                    ? 'ring-2 ring-purple-500/60 bg-purple-500/[0.06] dark:bg-purple-500/[0.08]'
-                    : isRecentlyUpdated
-                    ? 'ring-2 ring-emerald-500/50 bg-emerald-500/[0.04]'
-                    : ''
+                  isRecentlyUpdated ? 'ring-2 ring-emerald-500/50 bg-emerald-500/[0.04]' : ''
                 }`}
               >
                 {/* Single compact row: Avatar + Name + ID on left, Active Badge + 3-dots Menu on right */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <input
-                      type="checkbox"
-                      checked={selectedTeacherIds.includes(teacher.id)}
-                      onChange={() => handleToggleSelectTeacher(teacher.id)}
-                      className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-purple-600 focus:ring-purple-500/30 cursor-pointer accent-purple-600 flex-shrink-0"
-                    />
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-xs"
                       style={{ background: `hsl(${(teacher.name.charCodeAt(0) * 53) % 360}, 65%, 48%)` }}
@@ -865,22 +672,6 @@ export default function TeacherList() {
         teacher={deleteTarget}
         onConfirm={handleDelete}
         onClose={() => setDeleteTarget(null)}
-      />
-
-      <ConfirmDeleteSelectedTeachersModal
-        open={bulkDeleteModalOpen}
-        count={selectedTeacherIds.length}
-        onConfirm={handleConfirmBulkDelete}
-        onClose={() => setBulkDeleteModalOpen(false)}
-        isDeleting={isDeleting}
-      />
-
-      <ConfirmDeleteAllTeachersModal
-        open={deleteAllModalOpen}
-        totalCount={teachers.length}
-        onConfirm={handleConfirmDeleteAll}
-        onClose={() => setDeleteAllModalOpen(false)}
-        isDeleting={isDeleting}
       />
 
       <AddEditTeacherModal

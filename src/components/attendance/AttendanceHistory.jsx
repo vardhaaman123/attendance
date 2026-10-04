@@ -27,7 +27,7 @@ function AttendanceEditModal({ record, students, onSave, onClose }) {
     // construct display list directly from the saved attendance map keys
     const attKeys = Object.keys(record?.attendance || {});
     return attKeys.map((id, idx) => {
-      const found = (students || []).find(s => s.id === id || s._docId === id);
+      const found = (students || []).find(s => s.id === id || s._docId === id || s.entityId === id || String(s.rollNumber || '') === String(id));
       return found || {
         id,
         rollNumber: String(idx + 1).padStart(2, '0'),
@@ -97,7 +97,7 @@ function AttendanceEditModal({ record, students, onSave, onClose }) {
           ) : (
             classStudents.map(s => {
               const sId = s.id || s._docId;
-              const st = attendance[sId] || (s.id ? attendance[s.id] : undefined) || 'present';
+              const st = attendance[sId] || (s.id ? attendance[s.id] : undefined) || (s._docId ? attendance[s._docId] : undefined) || (s.entityId ? attendance[s.entityId] : undefined) || (s.rollNumber ? attendance[String(s.rollNumber)] : undefined) || 'present';
               return (
                 <div key={sId} className="flex items-center justify-between px-6 py-2.5 hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors">
                   <div className="flex items-center gap-3 min-w-0 pr-2">

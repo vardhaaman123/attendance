@@ -852,19 +852,23 @@ export function AppProvider({ children }) {
       email: newStudent.email || newStudent.parentEmail || '',
       parentEmail: newStudent.parentEmail || newStudent.email || '',
     };
+    const lookupPromises = [];
     if (newStudent.email) {
-      saveUserLookup(newStudent.email, { identifier: newStudent.email.trim().toLowerCase(), ...lookupPayload }).catch(console.warn);
+      lookupPromises.push(saveUserLookup(newStudent.email, { identifier: newStudent.email.trim().toLowerCase(), ...lookupPayload }));
     }
     if (newStudent.parentEmail && newStudent.parentEmail !== newStudent.email) {
-      saveUserLookup(newStudent.parentEmail, { identifier: newStudent.parentEmail.trim().toLowerCase(), ...lookupPayload }).catch(console.warn);
+      lookupPromises.push(saveUserLookup(newStudent.parentEmail, { identifier: newStudent.parentEmail.trim().toLowerCase(), ...lookupPayload }));
     }
     if (newStudent.rollNumber) {
       const rawRoll = String(newStudent.rollNumber).trim();
-      saveUserLookup(rawRoll, { identifier: rawRoll.toLowerCase(), ...lookupPayload }).catch(console.warn);
+      lookupPromises.push(saveUserLookup(rawRoll, { identifier: rawRoll.toLowerCase(), ...lookupPayload }));
       const stripped = rawRoll.replace(/^0+/, '');
       if (stripped && stripped !== rawRoll) {
-        saveUserLookup(stripped, { identifier: stripped.toLowerCase(), ...lookupPayload }).catch(console.warn);
+        lookupPromises.push(saveUserLookup(stripped, { identifier: stripped.toLowerCase(), ...lookupPayload }));
       }
+    }
+    if (lookupPromises.length > 0) {
+      await Promise.allSettled(lookupPromises);
     }
     return newStudent;
   }, [getTargetCollege]);
@@ -925,19 +929,23 @@ export function AppProvider({ children }) {
       parentEmail: updated.parentEmail || updated.email || '',
     };
 
+    const lookupPromises = [];
     if (updated.email) {
-      saveUserLookup(updated.email, { identifier: updated.email.trim().toLowerCase(), ...lookupPayload }).catch(console.warn);
+      lookupPromises.push(saveUserLookup(updated.email, { identifier: updated.email.trim().toLowerCase(), ...lookupPayload }));
     }
     if (updated.parentEmail && updated.parentEmail !== updated.email) {
-      saveUserLookup(updated.parentEmail, { identifier: updated.parentEmail.trim().toLowerCase(), ...lookupPayload }).catch(console.warn);
+      lookupPromises.push(saveUserLookup(updated.parentEmail, { identifier: updated.parentEmail.trim().toLowerCase(), ...lookupPayload }));
     }
     if (updated.rollNumber) {
       const rawRoll = String(updated.rollNumber).trim();
-      saveUserLookup(rawRoll, { identifier: rawRoll.toLowerCase(), ...lookupPayload }).catch(console.warn);
+      lookupPromises.push(saveUserLookup(rawRoll, { identifier: rawRoll.toLowerCase(), ...lookupPayload }));
       const stripped = rawRoll.replace(/^0+/, '');
       if (stripped && stripped !== rawRoll) {
-        saveUserLookup(stripped, { identifier: stripped.toLowerCase(), ...lookupPayload }).catch(console.warn);
+        lookupPromises.push(saveUserLookup(stripped, { identifier: stripped.toLowerCase(), ...lookupPayload }));
       }
+    }
+    if (lookupPromises.length > 0) {
+      await Promise.allSettled(lookupPromises);
     }
 
     broadcastLiveEvent('STUDENT_PASSWORD_UPDATED', {
@@ -971,38 +979,6 @@ export function AppProvider({ children }) {
       const stripped = rawRoll.replace(/^0+/, '');
       if (stripped) deleteUserLookup(stripped).catch(console.warn);
     }
-  }, [students, getTargetCollege]);
-
-  // ── Delete multiple students ──
-  const deleteStudents = useCallback(async (idsToDelete) => {
-    if (!Array.isArray(idsToDelete) || idsToDelete.length === 0) return 0;
-    const targetCollege = getTargetCollege();
-    const idSet = new Set(idsToDelete.map(String));
-
-    const toDeleteStudents = students.filter((s) => idSet.has(String(s.id)) || idSet.has(String(s._docId)));
-    setStudents((prev) => prev.filter((s) => !idSet.has(String(s.id)) && !idSet.has(String(s._docId))));
-
-    const docIds = toDeleteStudents.map((s) => s.id || s._docId).filter(Boolean);
-    if (docIds.length > 0) {
-      await batchDeleteCollection('students', docIds, targetCollege);
-      if (targetCollege !== 'dps_main') {
-        await batchDeleteCollection('students', docIds, 'dps_main').catch(() => {});
-      }
-    }
-
-    // Clean up lookups for each deleted student
-    toDeleteStudents.forEach((s) => {
-      if (s.email) deleteUserLookup(s.email).catch(() => {});
-      if (s.parentEmail) deleteUserLookup(s.parentEmail).catch(() => {});
-      if (s.rollNumber) {
-        const rawRoll = String(s.rollNumber).trim();
-        deleteUserLookup(rawRoll).catch(() => {});
-        const stripped = rawRoll.replace(/^0+/, '');
-        if (stripped) deleteUserLookup(stripped).catch(() => {});
-      }
-    });
-
-    return docIds.length;
   }, [students, getTargetCollege]);
 
   // ── Persist teachers (bulk replace) ──
@@ -1047,7 +1023,7 @@ export function AppProvider({ children }) {
     // Also register in users_lookup
     if (newTeacher.email) {
       const cleanEmail = newTeacher.email.trim().toLowerCase();
-      saveUserLookup(cleanEmail, {
+      await saveUserLookup(cleanEmail, {
         identifier: cleanEmail,
         role: 'teacher',
         collegeId: targetCollege,
@@ -1251,7 +1227,7 @@ export function AppProvider({ children }) {
         }
       } catch (_) {}
 
-      saveUserLookup(cleanEmail, {
+      await saveUserLookup(cleanEmail, {
         identifier: cleanEmail,
         role: 'teacher',
         collegeId: targetCollege,
@@ -1284,53 +1260,12 @@ export function AppProvider({ children }) {
 
   const deleteTeacher = useCallback(async (id) => {
     const targetCollege = getTargetCollege();
-    const target = teachers.find((t) => t.id === id);
-    setTeachers((prev) => prev.filter((t) => t.id !== id));
+    const target = teachers.find((t) => t.id === id || t._docId === id);
+    setTeachers((prev) => prev.filter((t) => t.id !== id && t._docId !== id));
     await fsDeleteDoc('teachers', id, targetCollege);
     if (target?.email) {
       deleteUserLookup(target.email).catch(console.warn);
     }
-  }, [teachers, getTargetCollege]);
-
-  // ── Delete multiple teachers ──
-  const deleteTeachers = useCallback(async (idsToDelete) => {
-    if (!Array.isArray(idsToDelete) || idsToDelete.length === 0) return 0;
-    const targetCollege = getTargetCollege();
-    const idSet = new Set(idsToDelete.map(String));
-
-    const toDeleteTeachers = teachers.filter((t) => idSet.has(String(t.id)) || idSet.has(String(t._docId)));
-    setTeachers((prev) => prev.filter((t) => !idSet.has(String(t.id)) && !idSet.has(String(t._docId))));
-
-    const docIds = toDeleteTeachers.map((t) => t.id || t._docId).filter(Boolean);
-    if (docIds.length > 0) {
-      await batchDeleteCollection('teachers', docIds, targetCollege);
-      if (targetCollege !== 'dps_main') {
-        await batchDeleteCollection('teachers', docIds, 'dps_main').catch(() => {});
-      }
-    }
-
-    toDeleteTeachers.forEach((t) => {
-      if (t.email) deleteUserLookup(t.email).catch(console.warn);
-    });
-
-    return docIds.length;
-  }, [teachers, getTargetCollege]);
-
-  // ── Delete all teachers ──
-  const deleteAllTeachers = useCallback(async () => {
-    const targetCollege = getTargetCollege();
-    const docIds = teachers.map((t) => t.id || t._docId).filter(Boolean);
-    setTeachers([]);
-    if (docIds.length > 0) {
-      await batchDeleteCollection('teachers', docIds, targetCollege);
-      if (targetCollege !== 'dps_main') {
-        await batchDeleteCollection('teachers', docIds, 'dps_main').catch(() => {});
-      }
-    }
-    teachers.forEach((t) => {
-      if (t.email) deleteUserLookup(t.email).catch(console.warn);
-    });
-    return docIds.length;
   }, [teachers, getTargetCollege]);
 
   const deleteClass = useCallback(async (targetClass) => {
@@ -1373,11 +1308,6 @@ export function AppProvider({ children }) {
 
     return studentIds.length;
   }, [students, attendanceRecords, getTargetCollege]);
-
-  // ── Delete all students (alias for deleteClass) ──
-  const deleteAllStudents = useCallback(async (targetClass = 'all') => {
-    return deleteClass(targetClass);
-  }, [deleteClass]);
 
   // ── Persist attendance ──
   const saveAttendanceRecord = useCallback(async (key, record) => {
@@ -1459,9 +1389,9 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      students, saveStudents, addStudent, updateStudent, deleteStudent, deleteStudents, deleteAllStudents, deleteClass, refreshStudents,
+      students, saveStudents, addStudent, updateStudent, deleteStudent, deleteClass, refreshStudents,
       recentlyUpdatedStudentId,
-      teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, deleteTeachers, deleteAllTeachers, refreshTeachers,
+      teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, refreshTeachers,
       recentlyUpdatedTeacherId, lastLiveSyncTime,
       messages, addMessage, deleteMessage, reactToMessage, markMessagesAsRead,
       exams, saveExams, deleteExam, clearAllExams,

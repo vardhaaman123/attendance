@@ -288,10 +288,16 @@ export default function TakeAttendance() {
     let list = classStudents;
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(s => s.name.toLowerCase().includes(q) || s.rollNumber.includes(q));
+      list = list.filter(s =>
+        String(s.name || '').toLowerCase().includes(q) ||
+        String(s.rollNumber || '').includes(q)
+      );
     }
     if (filter !== 'all') {
-      list = list.filter(s => attendance[s.id] === filter);
+      list = list.filter(s => {
+        const id = s.id || s._docId;
+        return attendance[id] === filter || (s.id && attendance[s.id] === filter);
+      });
     }
     return list;
   }, [classStudents, search, filter, attendance]);
@@ -309,7 +315,10 @@ export default function TakeAttendance() {
 
   const markAll = useCallback((status) => {
     const updated = {};
-    classStudents.forEach(s => { updated[s.id] = status; });
+    classStudents.forEach(s => {
+      const id = s.id || s._docId;
+      if (id) updated[id] = status;
+    });
     setAttendance(updated);
     setSaved(false);
   }, [classStudents]);
@@ -321,26 +330,35 @@ export default function TakeAttendance() {
   const handleSave = async () => {
     setSaving(true);
     await new Promise(r => setTimeout(r, 450));
-    saveAttendanceRecord(recordKey, {
-      date,
-      class: activeClass,
-      section: activeSection,
-      attendance,
-      savedAt: new Date().toISOString(),
-      markedBy: user?.name || 'Class Teacher',
-    });
-    setSaving(false);
-    setSaved(true);
-    addToast(`Attendance for Class ${activeClass}-${activeSection} saved successfully. ✓`, 'success');
+    try {
+      await saveAttendanceRecord(recordKey, {
+        date,
+        class: activeClass,
+        section: activeSection,
+        attendance,
+        savedAt: new Date().toISOString(),
+        markedBy: user?.name || 'Class Teacher',
+      });
+      setSaved(true);
+      addToast(`Attendance for Class ${activeClass}-${activeSection} saved successfully. ✓`, 'success');
 
-    // Automatically send alerts for absent students
-    if (settings.enableAutoAlerts) {
-      const absentStudents = classStudents.filter(s => attendance[s.id] === 'absent');
-      if (absentStudents.length > 0) {
-        import('../../utils/notifications').then(({ sendAbsenceAlerts }) => {
-          sendAbsenceAlerts(absentStudents, date, settings, addToast);
+      // Automatically send alerts for absent students
+      if (settings.enableAutoAlerts) {
+        const absentStudents = classStudents.filter(s => {
+          const id = s.id || s._docId;
+          return attendance[id] === 'absent' || (s.id && attendance[s.id] === 'absent');
         });
+        if (absentStudents.length > 0) {
+          import('../../utils/notifications').then(({ sendAbsenceAlerts }) => {
+            sendAbsenceAlerts(absentStudents, date, settings, addToast);
+          });
+        }
       }
+    } catch (err) {
+      console.error('Failed to save attendance:', err);
+      addToast('Failed to save attendance record. Please try again.', 'error');
+    } finally {
+      setSaving(false);
     }
   };
 

@@ -30,6 +30,7 @@ import {
   getLowAttendanceStudents,
   getWeeklyData,
   getClassComparison,
+  getStudentStatusFromRecord,
 } from '../../utils/attendanceCalc';
 import {
   BarChart,
@@ -127,9 +128,10 @@ export default function Dashboard() {
     activeStudents.forEach((s) => {
       const key = `${ds}_${s.class}_${s.section}`;
       const record = attendanceRecords[key];
-      if (record?.attendance?.[s.id]) {
+      const status = getStudentStatusFromRecord(record, s);
+      if (status) {
         t++;
-        if (record.attendance[s.id] !== 'absent') p++;
+        if (status !== 'absent') p++;
       }
     });
     return t > 0 ? Math.round((p / t) * 100) : 0;
@@ -173,7 +175,7 @@ export default function Dashboard() {
       activeStudents.forEach((s) => {
         const key = `${today}_${s.class}_${s.section}`;
         const record = attendanceRecords[key];
-        const status = record?.attendance?.[s.id] || 'Not Marked';
+        const status = getStudentStatusFromRecord(record, s) || 'Not Marked';
         rows.push([s.name, s.rollNumber || '—', s.class, s.section, status, today]);
       });
 

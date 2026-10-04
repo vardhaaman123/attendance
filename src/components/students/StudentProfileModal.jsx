@@ -104,12 +104,12 @@ export default function StudentProfileModal({ open, student, onClose }) {
   };
 
   const stats = useMemo(() =>
-    liveStudent ? calcStudentAttendancePercentage(liveStudent.id, attendanceRecords) : {},
+    liveStudent ? calcStudentAttendancePercentage(liveStudent, attendanceRecords) : {},
     [liveStudent, attendanceRecords]
   );
 
   const calDays = useMemo(() =>
-    liveStudent ? getStudentMonthlyCalendar(liveStudent.id, attendanceRecords, calYear, calMonth) : {},
+    liveStudent ? getStudentMonthlyCalendar(liveStudent, attendanceRecords, calYear, calMonth) : {},
     [liveStudent, attendanceRecords, calYear, calMonth]
   );
 

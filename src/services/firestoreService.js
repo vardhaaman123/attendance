@@ -294,7 +294,10 @@ export async function fetchCollection(name, schoolId) {
         if (!fallbackSnap.empty) snap = fallbackSnap;
       } catch (_) {}
     }
-    const docs = snap.docs.map((d) => ({ id: d.id, ...d.data(), _docId: d.id }));
+    const docs = snap.docs.map((d) => {
+      const data = d.data() || {};
+      return { ...data, id: data.id || d.id, _docId: d.id };
+    });
     if (docs.length > 0) return docs;
 
     // Resilient fallback to local cache if Firestore returned 0 docs or is warming up
@@ -459,7 +462,10 @@ export function subscribeCollection(name, onChange, schoolId) {
   return onSnapshot(
     colRef(name, targetSchool),
     (snap) => {
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data(), _docId: d.id }));
+      const items = snap.docs.map((d) => {
+        const data = d.data() || {};
+        return { ...data, id: data.id || d.id, _docId: d.id };
+      });
       onChange(items);
     },
     (err) => {
