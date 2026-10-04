@@ -1268,6 +1268,19 @@ export function AppProvider({ children }) {
     }
   }, [teachers, getTargetCollege]);
 
+  const deleteAllTeachers = useCallback(async () => {
+    const targetCollege = getTargetCollege();
+    const toDelete = [...teachers];
+    setTeachers([]);
+    const teacherIds = toDelete.map((t) => t.id || t._docId).filter(Boolean);
+    if (teacherIds.length > 0) {
+      await batchDeleteCollection('teachers', teacherIds, targetCollege);
+    }
+    toDelete.forEach((t) => {
+      if (t.email) deleteUserLookup(t.email).catch(() => {});
+    });
+  }, [teachers, getTargetCollege]);
+
   const deleteClass = useCallback(async (targetClass) => {
     const targetCollege = getTargetCollege();
     let toDeleteStudents;
@@ -1391,7 +1404,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       students, saveStudents, addStudent, updateStudent, deleteStudent, deleteClass, refreshStudents,
       recentlyUpdatedStudentId,
-      teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, refreshTeachers,
+      teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, deleteAllTeachers, refreshTeachers,
       recentlyUpdatedTeacherId, lastLiveSyncTime,
       messages, addMessage, deleteMessage, reactToMessage, markMessagesAsRead,
       exams, saveExams, deleteExam, clearAllExams,

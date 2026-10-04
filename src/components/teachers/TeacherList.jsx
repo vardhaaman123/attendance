@@ -45,13 +45,51 @@ function ConfirmDeleteTeacherModal({ open, teacher, onConfirm, onClose }) {
   );
 }
 
+function ConfirmDeleteAllTeachersModal({ open, count, onConfirm, onClose, isDeleting }) {
+  return (
+    <Modal open={open} onClose={onClose} title="Delete All Teachers" maxWidth="max-w-md">
+      <div className="space-y-4">
+        <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 text-xs flex items-start gap-2.5">
+          <Trash2 size={16} className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-red-600 dark:text-red-200">Warning: Permanent Deletion</p>
+            <p className="leading-relaxed">
+              This will permanently delete <strong>all {count} teachers</strong> from the institution. Their login credentials will be revoked immediately and this action cannot be undone.
+            </p>
+          </div>
+        </div>
+
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Are you sure you want to proceed and delete all teachers?
+        </p>
+
+        <div className="flex gap-3 justify-end pt-2">
+          <button onClick={onClose} disabled={isDeleting} className="btn-secondary cursor-pointer">
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={isDeleting || count === 0}
+            className="btn-danger flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Trash2 size={14} />
+            {isDeleting ? 'Deleting...' : `Delete All Teachers (${count})`}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 export default function TeacherList() {
-  const { teachers, deleteTeacher, addToast, students, saveTeachers, refreshTeachers, recentlyUpdatedTeacherId } = useApp();
+  const { teachers, deleteTeacher, deleteAllTeachers, addToast, students, saveTeachers, refreshTeachers, recentlyUpdatedTeacherId } = useApp();
   const { user, activeCollegeId } = useAuth();
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [editTeacher, setEditTeacher] = useState(null);
   const [viewTeacher, setViewTeacher] = useState(null);
   const [slipTeacher, setSlipTeacher] = useState(null);
@@ -138,6 +176,22 @@ export default function TeacherList() {
       addToast('Failed to delete teacher. Please try again.', 'error');
     }
     setDeleteTarget(null);
+  };
+
+  const handleDeleteAllTeachers = async () => {
+    setIsDeletingAll(true);
+    try {
+      if (deleteAllTeachers) {
+        await deleteAllTeachers();
+      }
+      addToast('All teachers have been removed successfully.', 'info');
+      setDeleteAllOpen(false);
+    } catch (err) {
+      console.error('Failed to delete all teachers:', err);
+      addToast('Failed to delete all teachers. Please try again.', 'error');
+    } finally {
+      setIsDeletingAll(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -306,6 +360,16 @@ export default function TeacherList() {
               onChange={handleImportExcel}
             />
           </label>
+          <button
+            type="button"
+            onClick={() => setDeleteAllOpen(true)}
+            disabled={teachers.length === 0}
+            className="btn-secondary text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 border-rose-500/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Delete all teachers"
+          >
+            <Trash2 size={15} />
+            <span className="hidden sm:inline">Delete All</span>
+          </button>
           <button onClick={() => setAddOpen(true)} className="btn-primary">
             <Plus size={15} /> Add Teacher
           </button>
@@ -718,6 +782,14 @@ export default function TeacherList() {
             : null
         }
         onClose={() => setSlipTeacher(null)}
+      />
+
+      <ConfirmDeleteAllTeachersModal
+        open={deleteAllOpen}
+        count={teachers.length}
+        onConfirm={handleDeleteAllTeachers}
+        onClose={() => !isDeletingAll && setDeleteAllOpen(false)}
+        isDeleting={isDeletingAll}
       />
     </div>
   );
