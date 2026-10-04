@@ -973,6 +973,38 @@ export function AppProvider({ children }) {
     }
   }, [students, getTargetCollege]);
 
+  // ── Delete multiple students ──
+  const deleteStudents = useCallback(async (idsToDelete) => {
+    if (!Array.isArray(idsToDelete) || idsToDelete.length === 0) return 0;
+    const targetCollege = getTargetCollege();
+    const idSet = new Set(idsToDelete.map(String));
+
+    const toDeleteStudents = students.filter((s) => idSet.has(String(s.id)) || idSet.has(String(s._docId)));
+    setStudents((prev) => prev.filter((s) => !idSet.has(String(s.id)) && !idSet.has(String(s._docId))));
+
+    const docIds = toDeleteStudents.map((s) => s.id || s._docId).filter(Boolean);
+    if (docIds.length > 0) {
+      await batchDeleteCollection('students', docIds, targetCollege);
+      if (targetCollege !== 'dps_main') {
+        await batchDeleteCollection('students', docIds, 'dps_main').catch(() => {});
+      }
+    }
+
+    // Clean up lookups for each deleted student
+    toDeleteStudents.forEach((s) => {
+      if (s.email) deleteUserLookup(s.email).catch(() => {});
+      if (s.parentEmail) deleteUserLookup(s.parentEmail).catch(() => {});
+      if (s.rollNumber) {
+        const rawRoll = String(s.rollNumber).trim();
+        deleteUserLookup(rawRoll).catch(() => {});
+        const stripped = rawRoll.replace(/^0+/, '');
+        if (stripped) deleteUserLookup(stripped).catch(() => {});
+      }
+    });
+
+    return docIds.length;
+  }, [students, getTargetCollege]);
+
   // ── Persist teachers (bulk replace) ──
   const saveTeachers = useCallback(async (updated) => {
     const targetCollege = getTargetCollege();
@@ -1260,6 +1292,47 @@ export function AppProvider({ children }) {
     }
   }, [teachers, getTargetCollege]);
 
+  // ── Delete multiple teachers ──
+  const deleteTeachers = useCallback(async (idsToDelete) => {
+    if (!Array.isArray(idsToDelete) || idsToDelete.length === 0) return 0;
+    const targetCollege = getTargetCollege();
+    const idSet = new Set(idsToDelete.map(String));
+
+    const toDeleteTeachers = teachers.filter((t) => idSet.has(String(t.id)) || idSet.has(String(t._docId)));
+    setTeachers((prev) => prev.filter((t) => !idSet.has(String(t.id)) && !idSet.has(String(t._docId))));
+
+    const docIds = toDeleteTeachers.map((t) => t.id || t._docId).filter(Boolean);
+    if (docIds.length > 0) {
+      await batchDeleteCollection('teachers', docIds, targetCollege);
+      if (targetCollege !== 'dps_main') {
+        await batchDeleteCollection('teachers', docIds, 'dps_main').catch(() => {});
+      }
+    }
+
+    toDeleteTeachers.forEach((t) => {
+      if (t.email) deleteUserLookup(t.email).catch(console.warn);
+    });
+
+    return docIds.length;
+  }, [teachers, getTargetCollege]);
+
+  // ── Delete all teachers ──
+  const deleteAllTeachers = useCallback(async () => {
+    const targetCollege = getTargetCollege();
+    const docIds = teachers.map((t) => t.id || t._docId).filter(Boolean);
+    setTeachers([]);
+    if (docIds.length > 0) {
+      await batchDeleteCollection('teachers', docIds, targetCollege);
+      if (targetCollege !== 'dps_main') {
+        await batchDeleteCollection('teachers', docIds, 'dps_main').catch(() => {});
+      }
+    }
+    teachers.forEach((t) => {
+      if (t.email) deleteUserLookup(t.email).catch(console.warn);
+    });
+    return docIds.length;
+  }, [teachers, getTargetCollege]);
+
   const deleteClass = useCallback(async (targetClass) => {
     const targetCollege = getTargetCollege();
     let toDeleteStudents;
@@ -1300,6 +1373,11 @@ export function AppProvider({ children }) {
 
     return studentIds.length;
   }, [students, attendanceRecords, getTargetCollege]);
+
+  // ── Delete all students (alias for deleteClass) ──
+  const deleteAllStudents = useCallback(async (targetClass = 'all') => {
+    return deleteClass(targetClass);
+  }, [deleteClass]);
 
   // ── Persist attendance ──
   const saveAttendanceRecord = useCallback(async (key, record) => {
@@ -1381,9 +1459,9 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      students, saveStudents, addStudent, updateStudent, deleteStudent, deleteClass, refreshStudents,
+      students, saveStudents, addStudent, updateStudent, deleteStudent, deleteStudents, deleteAllStudents, deleteClass, refreshStudents,
       recentlyUpdatedStudentId,
-      teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, refreshTeachers,
+      teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, deleteTeachers, deleteAllTeachers, refreshTeachers,
       recentlyUpdatedTeacherId, lastLiveSyncTime,
       messages, addMessage, deleteMessage, reactToMessage, markMessagesAsRead,
       exams, saveExams, deleteExam, clearAllExams,
