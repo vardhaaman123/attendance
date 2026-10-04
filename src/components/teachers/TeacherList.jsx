@@ -16,6 +16,8 @@ import {
   BookMarked,
   Key,
   RefreshCw,
+  CheckSquare,
+  Check,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -46,8 +48,36 @@ function ConfirmDeleteTeacherModal({ open, teacher, onConfirm, onClose }) {
   );
 }
 
-function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, onConfirm, onClose, isDeleting }) {
+function DeleteAllSelectorModal({
+  open,
+  teachers = [],
+  students = [],
+  onConfirm,
+  onClose,
+  isDeleting,
+}) {
   const [targetType, setTargetType] = useState('teachers'); // 'teachers' | 'students' | 'both'
+  const [mode, setMode] = useState('all'); // 'all' | 'specific'
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentClassFilter, setStudentClassFilter] = useState('all');
+  const [selectedStudentIds, setSelectedStudentIds] = useState(new Set());
+
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState(new Set());
+
+  useEffect(() => {
+    if (!open) {
+      setMode('all');
+      setStudentSearch('');
+      setStudentClassFilter('all');
+      setSelectedStudentIds(new Set());
+      setTeacherSearch('');
+      setSelectedTeacherIds(new Set());
+    }
+  }, [open]);
+
+  const teachersCount = teachers?.length || 0;
+  const studentsCount = students?.length || 0;
 
   const options = [
     {
@@ -55,7 +85,7 @@ function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, on
       title: 'Teachers',
       count: teachersCount,
       label: `${teachersCount} ${teachersCount === 1 ? 'Teacher' : 'Teachers'}`,
-      description: `This will permanently delete all ${teachersCount} teachers and revoke their login credentials. Student records will remain untouched.`,
+      description: `This will delete teachers and revoke their login credentials. Student records will remain untouched.`,
       icon: GraduationCap,
       badgeColor: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
     },
@@ -64,7 +94,7 @@ function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, on
       title: 'Students',
       count: studentsCount,
       label: `${studentsCount} ${studentsCount === 1 ? 'Student' : 'Students'}`,
-      description: `This will permanently delete all ${studentsCount} students across all classes and remove their attendance records. Teachers will remain untouched.`,
+      description: `This will delete students and remove their attendance records. Teachers will remain untouched.`,
       icon: Users,
       badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     },
@@ -80,10 +110,149 @@ function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, on
   ];
 
   const selectedOption = options.find((o) => o.id === targetType) || options[0];
-  const count = selectedOption.count;
+
+  // Student filtering & selection
+  const filteredStudents = useMemo(() => {
+    let list = students || [];
+    if (studentSearch) {
+      const q = studentSearch.toLowerCase();
+      list = list.filter(
+        (s) =>
+          String(s.name || '').toLowerCase().includes(q) ||
+          String(s.rollNumber || '').toLowerCase().includes(q) ||
+          String(s.email || '').toLowerCase().includes(q)
+      );
+    }
+    if (studentClassFilter !== 'all') {
+      list = list.filter((s) => String(s.class) === String(studentClassFilter));
+    }
+    return list;
+  }, [students, studentSearch, studentClassFilter]);
+
+  const uniqueClasses = useMemo(() => {
+    const cls = new Set((students || []).map((s) => String(s.class)).filter(Boolean));
+    return Array.from(cls).sort((a, b) => Number(a) - Number(b));
+  }, [students]);
+
+  const handleToggleStudent = (id) => {
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const isAllFilteredStudentsSelected = useMemo(() => {
+    const ids = filteredStudents.map((s) => s.id || s._docId).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => selectedStudentIds.has(id));
+  }, [filteredStudents, selectedStudentIds]);
+
+  const handleToggleSelectAllStudents = () => {
+    const ids = filteredStudents.map((s) => s.id || s._docId).filter(Boolean);
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (isAllFilteredStudentsSelected) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  // Teacher filtering & selection
+  const filteredTeachers = useMemo(() => {
+    let list = teachers || [];
+    if (teacherSearch) {
+      const q = teacherSearch.toLowerCase();
+      list = list.filter(
+        (t) =>
+          String(t.name || '').toLowerCase().includes(q) ||
+          String(t.email || '').toLowerCase().includes(q) ||
+          String(t.subject || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [teachers, teacherSearch]);
+
+  const isAllFilteredTeachersSelected = useMemo(() => {
+    const ids = filteredTeachers.map((t) => t.id || t._docId).filter(Boolean);
+    return ids.length > 0 && ids.every((id) => selectedTeacherIds.has(id));
+  }, [filteredTeachers, selectedTeacherIds]);
+
+  const handleToggleSelectAllTeachers = () => {
+    const ids = filteredTeachers.map((t) => t.id || t._docId).filter(Boolean);
+    setSelectedTeacherIds((prev) => {
+      const next = new Set(prev);
+      if (isAllFilteredTeachersSelected) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleConfirm = () => {
+    if (targetType === 'both') {
+      onConfirm({ targetType: 'both', mode: 'all' });
+    } else if (targetType === 'students') {
+      if (mode === 'specific') {
+        onConfirm({
+          targetType: 'students',
+          mode: 'specific',
+          selectedIds: Array.from(selectedStudentIds),
+        });
+      } else {
+        onConfirm({ targetType: 'students', mode: 'all' });
+      }
+    } else if (targetType === 'teachers') {
+      if (mode === 'specific') {
+        onConfirm({
+          targetType: 'teachers',
+          mode: 'specific',
+          selectedIds: Array.from(selectedTeacherIds),
+        });
+      } else {
+        onConfirm({ targetType: 'teachers', mode: 'all' });
+      }
+    }
+  };
+
+  let actionButtonLabel = '';
+  let isActionDisabled = isDeleting;
+
+  if (targetType === 'both') {
+    actionButtonLabel = `Delete All Records (${teachersCount + studentsCount})`;
+    isActionDisabled = isDeleting || (teachersCount === 0 && studentsCount === 0);
+  } else if (targetType === 'students') {
+    if (mode === 'specific') {
+      actionButtonLabel = `Delete Selected Students (${selectedStudentIds.size})`;
+      isActionDisabled = isDeleting || selectedStudentIds.size === 0;
+    } else {
+      actionButtonLabel = `Delete All Students (${studentsCount})`;
+      isActionDisabled = isDeleting || studentsCount === 0;
+    }
+  } else if (targetType === 'teachers') {
+    if (mode === 'specific') {
+      actionButtonLabel = `Delete Selected Teachers (${selectedTeacherIds.size})`;
+      isActionDisabled = isDeleting || selectedTeacherIds.size === 0;
+    } else {
+      actionButtonLabel = `Delete All Teachers (${teachersCount})`;
+      isActionDisabled = isDeleting || teachersCount === 0;
+    }
+  }
+
+  let warningText = selectedOption.description;
+  if (targetType === 'students' && mode === 'specific') {
+    warningText = `This will permanently delete the ${selectedStudentIds.size} selected student(s) and remove their individual attendance records. Other students will remain untouched.`;
+  } else if (targetType === 'teachers' && mode === 'specific') {
+    warningText = `This will permanently delete the ${selectedTeacherIds.size} selected teacher(s) and revoke their login credentials. Other teachers will remain untouched.`;
+  }
 
   return (
-    <Modal open={open} onClose={onClose} title="Delete All Records" maxWidth="max-w-lg">
+    <Modal open={open} onClose={onClose} title="Delete Records" maxWidth="max-w-xl">
       <div className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
@@ -97,7 +266,10 @@ function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, on
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => setTargetType(opt.id)}
+                  onClick={() => {
+                    setTargetType(opt.id);
+                    setMode('all');
+                  }}
                   className={`flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-rose-500/10 border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.15)] ring-1 ring-rose-500/30'
@@ -124,12 +296,214 @@ function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, on
           </div>
         </div>
 
+        {/* Sub-mode selector if targetType is 'students' or 'teachers' */}
+        {targetType !== 'both' && (
+          <div className="p-1 bg-slate-100 dark:bg-white/5 rounded-xl border border-slate-200/80 dark:border-white/10 flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setMode('all')}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                mode === 'all'
+                  ? 'bg-white dark:bg-dark-card text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Delete All {targetType === 'students' ? 'Students' : 'Teachers'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('specific')}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                mode === 'specific'
+                  ? 'bg-white dark:bg-dark-card text-rose-600 dark:text-rose-400 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <CheckSquare size={13} />
+              Select Specific {targetType === 'students' ? 'Students' : 'Teachers'}
+              {(targetType === 'students' ? selectedStudentIds.size : selectedTeacherIds.size) > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500 text-white font-bold">
+                  {targetType === 'students' ? selectedStudentIds.size : selectedTeacherIds.size}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Specific Students Checklist UI */}
+        {targetType === 'students' && mode === 'specific' && (
+          <div className="space-y-2 p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.02]">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search student by name, roll no..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                />
+              </div>
+              {uniqueClasses.length > 1 && (
+                <select
+                  value={studentClassFilter}
+                  onChange={(e) => setStudentClassFilter(e.target.value)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                >
+                  <option value="all">All Classes</option>
+                  {uniqueClasses.map((cls) => (
+                    <option key={cls} value={cls}>Class {cls}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between text-xs px-1 text-slate-500 dark:text-slate-400">
+              <button
+                type="button"
+                onClick={handleToggleSelectAllStudents}
+                disabled={filteredStudents.length === 0}
+                className="font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer disabled:opacity-50"
+              >
+                {isAllFilteredStudentsSelected ? 'Deselect All Filtered' : `Select All Filtered (${filteredStudents.length})`}
+              </button>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                {selectedStudentIds.size} selected
+              </span>
+            </div>
+
+            <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card">
+              {filteredStudents.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">
+                  No students found matching your criteria.
+                </div>
+              ) : (
+                filteredStudents.map((s) => {
+                  const sId = s.id || s._docId;
+                  const isChecked = selectedStudentIds.has(sId);
+                  return (
+                    <div
+                      key={sId}
+                      onClick={() => handleToggleStudent(sId)}
+                      className={`flex items-center justify-between p-2.5 cursor-pointer text-xs transition-colors ${
+                        isChecked
+                          ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                            isChecked
+                              ? 'bg-rose-500 border-rose-500 text-white'
+                              : 'border-slate-300 dark:border-white/20 bg-white dark:bg-white/5'
+                          }`}
+                        >
+                          {isChecked && <Check size={11} strokeWidth={3} />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate text-slate-800 dark:text-slate-200">
+                            {s.name}
+                          </p>
+                          <p className="text-[11px] text-slate-400 truncate">
+                            Roll: #{s.rollNumber || 'N/A'} {s.email ? `• ${s.email}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 shrink-0 ml-2">
+                        Class {s.class}-{s.section || 'A'}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Specific Teachers Checklist UI */}
+        {targetType === 'teachers' && mode === 'specific' && (
+          <div className="space-y-2 p-3 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.02]">
+            <div className="relative">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search teacher by name, subject, email..."
+                value={teacherSearch}
+                onChange={(e) => setTeacherSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs px-1 text-slate-500 dark:text-slate-400">
+              <button
+                type="button"
+                onClick={handleToggleSelectAllTeachers}
+                disabled={filteredTeachers.length === 0}
+                className="font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer disabled:opacity-50"
+              >
+                {isAllFilteredTeachersSelected ? 'Deselect All Filtered' : `Select All Filtered (${filteredTeachers.length})`}
+              </button>
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                {selectedTeacherIds.size} selected
+              </span>
+            </div>
+
+            <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-white/5 rounded-lg border border-slate-200 dark:border-white/10 bg-white dark:bg-dark-card">
+              {filteredTeachers.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">
+                  No teachers found matching your criteria.
+                </div>
+              ) : (
+                filteredTeachers.map((t) => {
+                  const tId = t.id || t._docId;
+                  const isChecked = selectedTeacherIds.has(tId);
+                  return (
+                    <div
+                      key={tId}
+                      onClick={() => handleToggleTeacher(tId)}
+                      className={`flex items-center justify-between p-2.5 cursor-pointer text-xs transition-colors ${
+                        isChecked
+                          ? 'bg-rose-500/10 text-rose-700 dark:text-rose-300'
+                          : 'hover:bg-slate-50 dark:hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                            isChecked
+                              ? 'bg-rose-500 border-rose-500 text-white'
+                              : 'border-slate-300 dark:border-white/20 bg-white dark:bg-white/5'
+                          }`}
+                        >
+                          {isChecked && <Check size={11} strokeWidth={3} />}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate text-slate-800 dark:text-slate-200">
+                            {t.name}
+                          </p>
+                          <p className="text-[11px] text-slate-400 truncate">
+                            {t.email || t.contact || 'No email'} {t.subject ? `• ${t.subject}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300 shrink-0 ml-2">
+                        Class {t.class}-{t.section || 'All'}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 text-xs flex items-start gap-2.5">
           <Trash2 size={16} className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold text-red-600 dark:text-red-200">Warning: Permanent Deletion</p>
             <p className="leading-relaxed">
-              {selectedOption.description}
+              {warningText}
             </p>
           </div>
         </div>
@@ -143,12 +517,12 @@ function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, on
             Cancel
           </button>
           <button
-            onClick={() => onConfirm(targetType)}
-            disabled={isDeleting || count === 0}
+            onClick={handleConfirm}
+            disabled={isActionDisabled}
             className="btn-danger flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Trash2 size={14} />
-            {isDeleting ? 'Deleting...' : `Delete ${selectedOption.title} (${count})`}
+            {isDeleting ? 'Deleting...' : actionButtonLabel}
           </button>
         </div>
       </div>
@@ -157,7 +531,19 @@ function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, on
 }
 
 export default function TeacherList() {
-  const { teachers, deleteTeacher, deleteAllTeachers, deleteClass, addToast, students, saveTeachers, refreshTeachers, recentlyUpdatedTeacherId } = useApp();
+  const {
+    teachers,
+    deleteTeacher,
+    deleteAllTeachers,
+    deleteMultipleTeachers,
+    deleteMultipleStudents,
+    deleteClass,
+    addToast,
+    students,
+    saveTeachers,
+    refreshTeachers,
+    recentlyUpdatedTeacherId,
+  } = useApp();
   const { user, activeCollegeId } = useAuth();
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
@@ -253,15 +639,29 @@ export default function TeacherList() {
     setDeleteTarget(null);
   };
 
-  const handleDeleteAll = async (targetType) => {
+  const handleDeleteAll = async (payload) => {
+    const targetType = typeof payload === 'object' ? payload.targetType : payload;
+    const mode = typeof payload === 'object' ? payload.mode : 'all';
+    const selectedIds = typeof payload === 'object' ? payload.selectedIds : [];
+
     setIsDeletingAll(true);
     try {
       if (targetType === 'teachers') {
-        if (deleteAllTeachers) await deleteAllTeachers();
-        addToast('All teachers have been removed successfully.', 'info');
+        if (mode === 'specific' && selectedIds && selectedIds.length > 0) {
+          if (deleteMultipleTeachers) await deleteMultipleTeachers(selectedIds);
+          addToast(`${selectedIds.length} teacher${selectedIds.length === 1 ? '' : 's'} removed successfully.`, 'info');
+        } else {
+          if (deleteAllTeachers) await deleteAllTeachers();
+          addToast('All teachers have been removed successfully.', 'info');
+        }
       } else if (targetType === 'students') {
-        if (deleteClass) await deleteClass('all');
-        addToast('All students and attendance records have been removed successfully.', 'info');
+        if (mode === 'specific' && selectedIds && selectedIds.length > 0) {
+          if (deleteMultipleStudents) await deleteMultipleStudents(selectedIds);
+          addToast(`${selectedIds.length} student${selectedIds.length === 1 ? '' : 's'} removed successfully.`, 'info');
+        } else {
+          if (deleteClass) await deleteClass('all');
+          addToast('All students and attendance records have been removed successfully.', 'info');
+        }
       } else if (targetType === 'both') {
         const promises = [];
         if (deleteAllTeachers) promises.push(deleteAllTeachers());
@@ -870,8 +1270,8 @@ export default function TeacherList() {
 
       <DeleteAllSelectorModal
         open={deleteAllOpen}
-        teachersCount={teachers?.length || 0}
-        studentsCount={students?.length || 0}
+        teachers={teachers || []}
+        students={students || []}
         onConfirm={handleDeleteAll}
         onClose={() => !isDeletingAll && setDeleteAllOpen(false)}
         isDeleting={isDeletingAll}

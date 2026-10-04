@@ -981,6 +981,64 @@ export function AppProvider({ children }) {
     }
   }, [students, getTargetCollege]);
 
+  // ── Delete multiple specific students ──
+  const deleteMultipleStudents = useCallback(async (ids) => {
+    if (!Array.isArray(ids) || ids.length === 0) return;
+    const targetCollege = getTargetCollege();
+    const idSet = new Set(ids.map(String));
+    const toDelete = students.filter((s) => idSet.has(String(s.id)) || idSet.has(String(s._docId)));
+    setStudents((prev) => prev.filter((s) => !idSet.has(String(s.id)) && !idSet.has(String(s._docId))));
+
+    const docIds = toDelete.map((s) => s.id || s._docId).filter(Boolean);
+    if (docIds.length > 0) {
+      await batchDeleteCollection('students', docIds, targetCollege);
+    }
+
+    toDelete.forEach((s) => {
+      if (s.email) deleteUserLookup(s.email).catch(() => {});
+      if (s.parentEmail) deleteUserLookup(s.parentEmail).catch(() => {});
+      if (s.rollNumber) {
+        const rawRoll = String(s.rollNumber).trim();
+        deleteUserLookup(rawRoll).catch(() => {});
+        const stripped = rawRoll.replace(/^0+/, '');
+        if (stripped) deleteUserLookup(stripped).catch(() => {});
+      }
+    });
+
+    const studentKeys = new Set(toDelete.flatMap((s) => [
+      String(s.id),
+      String(s._docId),
+      String(s.entityId),
+      String(s.rollNumber),
+    ].filter(Boolean)));
+
+    setAttendanceRecords((prev) => {
+      let modified = false;
+      const nextRecords = {};
+      Object.entries(prev || {}).forEach(([recKey, rec]) => {
+        if (!rec?.attendance) {
+          nextRecords[recKey] = rec;
+          return;
+        }
+        let recModified = false;
+        const nextAtt = { ...rec.attendance };
+        studentKeys.forEach((k) => {
+          if (nextAtt[k] !== undefined) {
+            delete nextAtt[k];
+            recModified = true;
+          }
+        });
+        if (recModified) {
+          modified = true;
+          nextRecords[recKey] = { ...rec, attendance: nextAtt };
+        } else {
+          nextRecords[recKey] = rec;
+        }
+      });
+      return modified ? nextRecords : prev;
+    });
+  }, [students, getTargetCollege]);
+
   // ── Persist teachers (bulk replace) ──
   const saveTeachers = useCallback(async (updated) => {
     const targetCollege = getTargetCollege();
@@ -1281,6 +1339,23 @@ export function AppProvider({ children }) {
     });
   }, [teachers, getTargetCollege]);
 
+  const deleteMultipleTeachers = useCallback(async (ids) => {
+    if (!ids || ids.length === 0) return 0;
+    const targetCollege = getTargetCollege();
+    const idSet = new Set(ids.map(String));
+    const toDeleteTeachers = teachers.filter((t) => idSet.has(String(t.id)) || idSet.has(String(t._docId)));
+    setTeachers((prev) => prev.filter((t) => !idSet.has(String(t.id)) && !idSet.has(String(t._docId))));
+
+    const teacherDocIds = toDeleteTeachers.map((t) => t.id || t._docId).filter(Boolean);
+    if (teacherDocIds.length > 0) {
+      await batchDeleteCollection('teachers', teacherDocIds, targetCollege);
+    }
+    toDeleteTeachers.forEach((t) => {
+      if (t.email) deleteUserLookup(t.email).catch(() => {});
+    });
+    return teacherDocIds.length;
+  }, [teachers, getTargetCollege]);
+
   const deleteClass = useCallback(async (targetClass) => {
     const targetCollege = getTargetCollege();
     let toDeleteStudents;
@@ -1402,9 +1477,9 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      students, saveStudents, addStudent, updateStudent, deleteStudent, deleteClass, refreshStudents,
+      students, saveStudents, addStudent, updateStudent, deleteStudent, deleteMultipleStudents, deleteClass, refreshStudents,
       recentlyUpdatedStudentId,
-      teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, deleteAllTeachers, refreshTeachers,
+      teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, deleteAllTeachers, deleteMultipleTeachers, refreshTeachers,
       recentlyUpdatedTeacherId, lastLiveSyncTime,
       messages, addMessage, deleteMessage, reactToMessage, markMessagesAsRead,
       exams, saveExams, deleteExam, clearAllExams,
