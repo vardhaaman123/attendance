@@ -23,6 +23,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getUserIdentities, isMessageUnreadForUser } from '../../utils/messageUtils';
 import { useApp } from '../../context/AppContext';
 import {
   getTodayStats,
@@ -66,24 +67,39 @@ function CustomDarkTooltip({ active, payload, label }) {
 export default function Dashboard() {
   const { role, user } = useAuth();
   const {
-    students,
-    attendanceRecords,
+    students = [],
+    teachers = [],
+    attendanceRecords = {},
     setSelectedClass,
     setSelectedSection,
-    messages,
+    messages = [],
     addToast,
-    settings,
+    settings = {},
+    refreshStudents,
+    refreshTeachers,
   } = useApp();
   const navigate = useNavigate();
 
   const displayName = role === 'admin' 
-    ? (settings?.teacherName || user?.name || 'Administrator') 
+    ? (user?.name || 'Administrator') 
     : (user?.name || 'Teacher');
 
   // Filter by class pill (null = All Classes)
-  const [filterClass, setFilterClass] = useState(role === 'teacher' && user?.class ? user.class : 'all');
+  const [filterClass, setFilterClass] = useState(role === 'teacher' && user?.class ? String(user.class) : 'all');
   const [chartView, setChartView] = useState('weekly'); // 'weekly' | 'classes'
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 640 : false));
+
+  useEffect(() => {
+    if (role === 'teacher' && user?.class && filterClass === 'all') {
+      setFilterClass(String(user.class));
+    }
+  }, [role, user?.class, filterClass]);
+
+  // Auto-fetch data without requiring full page reload
+  useEffect(() => {
+    if (students.length === 0 && refreshStudents) refreshStudents();
+    if (teachers.length === 0 && refreshTeachers) refreshTeachers();
+  }, [students.length, teachers.length, refreshStudents, refreshTeachers]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 640);
@@ -94,7 +110,7 @@ export default function Dashboard() {
   // Filter students based on selected class
   const activeStudents = useMemo(() => {
     if (filterClass === 'all') return students;
-    return students.filter((s) => s.class === filterClass);
+    return students.filter((s) => String(s.class || '').trim() === String(filterClass || '').trim());
   }, [students, filterClass]);
 
   const todayStats = useMemo(() => getTodayStats(activeStudents, attendanceRecords), [activeStudents, attendanceRecords]);
@@ -121,13 +137,21 @@ export default function Dashboard() {
 
   const trend = todayStats.percentage - yesterday;
 
+  const identities = useMemo(() => {
+    return getUserIdentities({ role, user, teachers, students });
+  }, [role, user, teachers, students]);
+
   // Recent announcements preview
   const recentAnnouncements = useMemo(() => {
     return (messages || [])
-      .filter((m) => m.targetId === 'all')
-      .slice(-3)
-      .reverse();
-  }, [messages]);
+      .filter((m) => m.targetId === 'all' || m.targetRole === 'all')
+      .slice(-4)
+      .reverse()
+      .map((m) => ({
+        ...m,
+        isUnread: isMessageUnreadForUser(m, identities, students),
+      }));
+  }, [messages, identities, students]);
 
   // Greeting time
   const greeting = useMemo(() => {
@@ -361,10 +385,10 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-3">
-            {Array.from(new Set([...students.map(s => s.class), '8', '9', '10'])).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map((cls) => {
-              const classStudents = students.filter((s) => s.class === cls);
-              const sectionStats = Array.from(new Set([...classStudents.map(s => s.section), 'A', 'B'])).sort().map((section) => {
-                const secStudents = classStudents.filter((s) => s.section === section);
+            {Array.from(new Set([...students.map(s => String(s.class || '').trim()), '8', '9', '10'])).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map((cls) => {
+              const classStudents = students.filter((s) => String(s.class || '').trim() === String(cls).trim());
+              const sectionStats = Array.from(new Set([...classStudents.map(s => String(s.section || '').trim().toUpperCase()), 'A', 'B'])).filter(Boolean).sort().map((section) => {
+                const secStudents = classStudents.filter((s) => String(s.section || '').trim().toUpperCase() === String(section).trim().toUpperCase());
                 const today = new Date().toISOString().split('T')[0];
                 const key = `${today}_${cls}_${section}`;
                 const record = attendanceRecords[key];
@@ -651,9 +675,14 @@ export default function Dashboard() {
                   className="p-2.5 sm:p-3 rounded-xl bg-[#111726]/80 hover:bg-[#161F34] border border-white/[0.06] transition-all cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                      {msg.senderName || 'Principal'}
-                    </span>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {msg.isUnread && (
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse flex-shrink-0" title="New notice" />
+                      )}
+                      <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 truncate">
+                        {msg.senderName || 'Principal'}
+                      </span>
+                    </div>
                     <span className="text-[10px] text-slate-500">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>

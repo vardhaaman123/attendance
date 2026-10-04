@@ -1,18 +1,36 @@
-import { Phone, Mail, BookOpen, Award, Edit2 } from 'lucide-react';
+import { useState } from 'react';
+import { Phone, Mail, BookOpen, Award, Edit2, Key, Eye, EyeOff, Copy, Check } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useApp } from '../../context/AppContext';
 
 export default function TeacherProfileModal({ open, teacher, onClose, onEdit }) {
-  const { students } = useApp();
+  const { students, teachers } = useApp();
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedPw, setCopiedPw] = useState(false);
 
   if (!teacher) return null;
 
-  const initials = teacher.name.split(' ').map(n => n[0]).join('').slice(0, 2);
-  const avatarHue = (teacher.name.charCodeAt(0) * 53) % 360;
+  // Resolve live teacher record from AppContext so updates in real-time
+  const liveTeacher =
+    (teachers || []).find(
+      (t) =>
+        (t.id && (t.id === teacher.id || t._docId === teacher.id)) ||
+        (t.email && teacher.email && t.email.trim().toLowerCase() === teacher.email.trim().toLowerCase())
+    ) || teacher;
+
+  const initials = (liveTeacher.name || 'T').split(' ').map(n => n[0]).join('').slice(0, 2);
+  const avatarHue = ((liveTeacher.name || 'T').charCodeAt(0) * 53) % 360;
+  const currentPassword = liveTeacher.password || 'teacher123';
 
   const assignedStudents = (students || []).filter(
-    s => String(s.class) === String(teacher.class) && String(s.section).toUpperCase() === String(teacher.section).toUpperCase()
+    s => String(s.class) === String(liveTeacher.class) && String(s.section).toUpperCase() === String(liveTeacher.section).toUpperCase()
   );
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(currentPassword);
+    setCopiedPw(true);
+    setTimeout(() => setCopiedPw(false), 2000);
+  };
 
   return (
     <Modal open={open} onClose={onClose} title="Teacher Details" maxWidth="max-w-md">
@@ -27,13 +45,13 @@ export default function TeacherProfileModal({ open, teacher, onClose, onEdit }) 
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">{teacher.name}</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">{liveTeacher.name}</h3>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 Active
               </span>
             </div>
-            <p className="text-xs text-slate-400 font-mono mt-0.5">{teacher.id}</p>
+            <p className="text-xs text-slate-400 font-mono mt-0.5">{liveTeacher.id}</p>
           </div>
         </div>
 
@@ -42,24 +60,63 @@ export default function TeacherProfileModal({ open, teacher, onClose, onEdit }) 
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
             <span className="text-[10px] font-semibold uppercase text-blue-400 block">Assigned Class</span>
             <span className="text-sm sm:text-base font-bold text-blue-300 block mt-0.5">
-              Class {teacher.class}-{teacher.section}
+              Class {liveTeacher.class}-{liveTeacher.section}
             </span>
           </div>
 
           <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-center">
             <span className="text-[10px] font-semibold uppercase text-purple-400 block">Subject</span>
             <span className="text-sm sm:text-base font-bold text-purple-300 block mt-0.5 truncate">
-              {teacher.subject || 'General'}
+              {liveTeacher.subject || 'General'}
             </span>
+          </div>
+        </div>
+
+        {/* Live-Synced Password Box */}
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/25 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0">
+              <Key size={15} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] uppercase font-bold text-blue-400 tracking-wider">Login Password</span>
+                <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded-full border border-emerald-500/20">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                  Live Synced
+                </span>
+              </div>
+              <p className="text-sm font-mono font-bold text-slate-900 dark:text-white tracking-wider mt-0.5">
+                {showPassword ? currentPassword : '••••••••'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyPassword}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="Copy password"
+            >
+              {copiedPw ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+            </button>
           </div>
         </div>
 
         {/* Detailed Info List */}
         <div className="space-y-2 pt-1">
           {[
-            [Mail, 'Email Address', teacher.email],
-            [Phone, 'Contact Number', teacher.contact || 'Not provided'],
-            [BookOpen, 'Assigned Division', `Class ${teacher.class} - Section ${teacher.section}`],
+            [Mail, 'Email Address', liveTeacher.email],
+            [Phone, 'Contact Number', liveTeacher.contact || 'Not provided'],
+            [BookOpen, 'Assigned Division', `Class ${liveTeacher.class} - Section ${liveTeacher.section}`],
             [Award, 'Students in Assigned Class', `${assignedStudents.length} Students`],
           ].map(([Icon, label, val]) => (
             <div key={label} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/50 dark:bg-white/[0.02] border border-slate-100 dark:border-white/5">
@@ -79,7 +136,7 @@ export default function TeacherProfileModal({ open, teacher, onClose, onEdit }) 
           <button
             type="button"
             onClick={onClose}
-            className="btn-secondary text-xs"
+            className="btn-secondary text-xs cursor-pointer"
           >
             Close
           </button>
@@ -88,9 +145,9 @@ export default function TeacherProfileModal({ open, teacher, onClose, onEdit }) 
               type="button"
               onClick={() => {
                 onClose();
-                onEdit(teacher);
+                onEdit(liveTeacher);
               }}
-              className="btn-primary text-xs flex items-center gap-1.5"
+              className="btn-primary text-xs flex items-center gap-1.5 cursor-pointer"
             >
               <Edit2 size={13} />
               <span>Edit Teacher</span>

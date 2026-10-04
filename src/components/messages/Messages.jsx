@@ -7,7 +7,6 @@ import {
   UserCheck,
   MessageSquare,
   Search,
-  Sparkles,
   Smile,
   Trash2,
   Copy,
@@ -15,7 +14,6 @@ import {
   CheckCheck,
   Megaphone,
   X,
-  Pin,
   Clock,
   GraduationCap,
   ShieldCheck,
@@ -24,6 +22,7 @@ import {
   Image as ImageIcon,
   Camera,
   ChevronLeft,
+  Lock,
 } from 'lucide-react';
 
 const EMOJIS = ['👍', '❤️', '🎉', '👏', '📢', '⏰', '📝', '✅'];
@@ -43,16 +42,189 @@ export default function Messages() {
   const [showEmojiBar, setShowEmojiBar] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
-  const [now, setNow] = useState(Date.now());
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const markedReadRef = useRef(new Set());
 
-  // Timer to auto-hide messages exactly at 48h
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, []);
+  const normRole = (role || 'admin').toLowerCase();
+
+  // Resolve current logged-in identity against collections for rock-solid ID mapping
+  const currentTeacherRecord = useMemo(() => {
+    if (normRole !== 'teacher') return null;
+    return (teachers || []).find((t) =>
+      (user?.id && (t.id === user.id || t._docId === user.id)) ||
+      (user?.email && t.email && t.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
+      (user?.name && t.name && t.name.toLowerCase().trim() === user.name.toLowerCase().trim())
+    ) || user;
+  }, [teachers, normRole, user]);
+
+  const currentStudentRecord = useMemo(() => {
+    if (normRole !== 'student') return null;
+    return (students || []).find((s) => {
+      if (!currentStudent) return false;
+      const sId = s.id || s._docId;
+      const cId = currentStudent.id || currentStudent._docId;
+      if (cId && (sId === cId || s._docId === cId)) return true;
+      if (currentStudent.rollNumber && s.rollNumber) {
+        const sRoll = String(s.rollNumber).toLowerCase().trim();
+        const cRoll = String(currentStudent.rollNumber).toLowerCase().trim();
+        if (sRoll === cRoll || sRoll.replace(/^0+/, '') === cRoll.replace(/^0+/, '')) return true;
+      }
+      if (currentStudent.email && s.email && s.email.toLowerCase().trim() === currentStudent.email.toLowerCase().trim()) return true;
+      if (currentStudent.email && s.parentEmail && s.parentEmail.toLowerCase().trim() === currentStudent.email.toLowerCase().trim()) return true;
+      if (currentStudent.parentEmail && s.parentEmail && s.parentEmail.toLowerCase().trim() === currentStudent.parentEmail.toLowerCase().trim()) return true;
+      if (currentStudent.parentEmail && s.email && s.email.toLowerCase().trim() === currentStudent.parentEmail.toLowerCase().trim()) return true;
+      if (currentStudent.name && s.name && s.name.toLowerCase().trim() === currentStudent.name.toLowerCase().trim()) return true;
+      return false;
+    }) || currentStudent;
+  }, [students, normRole, currentStudent]);
+
+  const myId = useMemo(() => {
+    if (normRole === 'student') return currentStudentRecord?.id || currentStudentRecord?._docId || currentStudent?.id || currentStudent?._docId || 'student';
+    if (normRole === 'admin') return 'admin';
+    return currentTeacherRecord?.id || currentTeacherRecord?._docId || user?.id || user?.uid || 'admin';
+  }, [normRole, currentStudentRecord, currentStudent, currentTeacherRecord, user]);
+
+  const myAllIds = useMemo(() => {
+    if (normRole === 'student') {
+      const rawRoll = currentStudentRecord?.rollNumber || currentStudent?.rollNumber;
+      const strippedRoll = rawRoll ? String(rawRoll).trim().replace(/^0+/, '') : null;
+      const paddedRoll = rawRoll ? String(rawRoll).trim().padStart(3, '0') : null;
+      return [
+        currentStudentRecord?.id,
+        currentStudentRecord?._docId,
+        currentStudentRecord?.entityId,
+        currentStudent?.id,
+        currentStudent?._docId,
+        currentStudent?.entityId,
+        rawRoll ? String(rawRoll).trim() : null,
+        strippedRoll,
+        paddedRoll,
+        currentStudentRecord?.email?.toLowerCase().trim(),
+        currentStudent?.email?.toLowerCase().trim(),
+        currentStudentRecord?.parentEmail?.toLowerCase().trim(),
+        currentStudent?.parentEmail?.toLowerCase().trim(),
+        currentStudentRecord?.name?.toLowerCase().trim(),
+        currentStudent?.name?.toLowerCase().trim(),
+      ].filter(Boolean);
+    }
+    if (normRole === 'admin') {
+      return ['admin', user?.uid, user?.id, user?.email?.toLowerCase().trim()].filter(Boolean);
+    }
+    return [
+      currentTeacherRecord?.id,
+      currentTeacherRecord?._docId,
+      currentTeacherRecord?.entityId,
+      user?.id,
+      user?.uid,
+      currentTeacherRecord?.email?.toLowerCase().trim(),
+      user?.email?.toLowerCase().trim(),
+      currentTeacherRecord?.name?.toLowerCase().trim(),
+      user?.name?.toLowerCase().trim(),
+    ].filter(Boolean);
+  }, [normRole, currentStudentRecord, currentStudent, currentTeacherRecord, user]);
+
+  // Selected recipient entity resolution
+  const selectedTeacher = useMemo(() => {
+    if (activeTab !== 'teachers' && selectedRecipientId !== 'teachers') return null;
+    if (!selectedRecipientId) return null;
+    return (teachers || []).find((t) => {
+      const tId = t.id || t._docId;
+      if (tId && tId === selectedRecipientId) return true;
+      if (t.email && t.email.trim().toLowerCase() === String(selectedRecipientId).trim().toLowerCase()) return true;
+      return false;
+    }) || null;
+  }, [activeTab, selectedRecipientId, teachers]);
+
+  const selectedStudent = useMemo(() => {
+    if (activeTab !== 'students' && selectedRecipientId !== 'students') return null;
+    if (!selectedRecipientId) return null;
+    return (students || []).find((s) => {
+      const sId = s.id || s._docId;
+      if (sId && sId === selectedRecipientId) return true;
+      if (s.rollNumber && (String(s.rollNumber).trim() === String(selectedRecipientId).trim() || String(s.rollNumber).trim().replace(/^0+/, '') === String(selectedRecipientId).trim().replace(/^0+/, ''))) return true;
+      if (s.email && s.email.trim().toLowerCase() === String(selectedRecipientId).trim().toLowerCase()) return true;
+      if (s.parentEmail && s.parentEmail.trim().toLowerCase() === String(selectedRecipientId).trim().toLowerCase()) return true;
+      return false;
+    }) || null;
+  }, [activeTab, selectedRecipientId, students]);
+
+  const recipientAllIds = useMemo(() => {
+    if (activeTab === 'teachers' && selectedTeacher) {
+      return [
+        selectedTeacher.id,
+        selectedTeacher._docId,
+        selectedTeacher.entityId,
+        selectedTeacher.email?.toLowerCase().trim(),
+        selectedTeacher.name?.toLowerCase().trim(),
+      ].filter(Boolean);
+    }
+    if (activeTab === 'students' && selectedStudent) {
+      const rawRoll = selectedStudent.rollNumber;
+      const strippedRoll = rawRoll ? String(rawRoll).trim().replace(/^0+/, '') : null;
+      const paddedRoll = rawRoll ? String(rawRoll).trim().padStart(3, '0') : null;
+      return [
+        selectedStudent.id,
+        selectedStudent._docId,
+        selectedStudent.entityId,
+        rawRoll ? String(rawRoll).trim() : null,
+        strippedRoll,
+        paddedRoll,
+        selectedStudent.email?.toLowerCase().trim(),
+        selectedStudent.parentEmail?.toLowerCase().trim(),
+        selectedStudent.name?.toLowerCase().trim(),
+      ].filter(Boolean);
+    }
+    return [selectedRecipientId].filter(Boolean);
+  }, [activeTab, selectedTeacher, selectedStudent, selectedRecipientId]);
+
+  // Robust student matching helpers for multi-device / roll number formatting consistency
+  const normalizeRoll = useCallback((roll) => (roll != null ? String(roll).trim().toLowerCase().replace(/^0+/, '') : ''), []);
+
+  const matchesStudent = useCallback((stu, id, roll, email, name) => {
+    if (!stu) return false;
+    const sId = stu.id || stu._docId;
+    if (id && (sId === id || stu.entityId === id)) return true;
+    if (roll && stu.rollNumber) {
+      const r1 = normalizeRoll(roll);
+      const r2 = normalizeRoll(stu.rollNumber);
+      if (r1 && r2 && r1 === r2) return true;
+    }
+    if (email) {
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (stu.email && stu.email.trim().toLowerCase() === cleanEmail) return true;
+      if (stu.parentEmail && stu.parentEmail.trim().toLowerCase() === cleanEmail) return true;
+    }
+    if (name && stu.name) {
+      if (stu.name.trim().toLowerCase() === String(name).trim().toLowerCase()) return true;
+    }
+    return false;
+  }, [normalizeRoll]);
+
+  const isMsgTargetStudent = useCallback((msg, stu, stuAllIds = []) => {
+    if (!stu && stuAllIds.length === 0) return false;
+    const targetId = msg.targetId;
+    if (stuAllIds.length > 0 && targetId && stuAllIds.includes(targetId)) return true;
+    if (stu && matchesStudent(stu, targetId, msg.targetRollNumber, msg.targetEmail || msg.targetParentEmail, msg.targetName)) return true;
+    if (targetId && students && stu) {
+      const found = students.find((s) => (s.id || s._docId) === targetId);
+      if (found && matchesStudent(stu, found.id, found.rollNumber, found.email || found.parentEmail, found.name)) return true;
+    }
+    return false;
+  }, [students, matchesStudent]);
+
+  const isMsgSenderStudent = useCallback((msg, stu, stuAllIds = []) => {
+    if (!stu && stuAllIds.length === 0) return false;
+    const senderId = msg.senderId;
+    if (stuAllIds.length > 0 && senderId && stuAllIds.includes(senderId)) return true;
+    if (stu && matchesStudent(stu, senderId, msg.senderRollNumber, msg.senderEmail, msg.senderName)) return true;
+    if (senderId && students && stu) {
+      const found = students.find((s) => (s.id || s._docId) === senderId);
+      if (found && matchesStudent(stu, found.id, found.rollNumber, found.email || found.parentEmail, found.name)) return true;
+    }
+    return false;
+  }, [students, matchesStudent]);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -61,13 +233,110 @@ export default function Messages() {
     }
   }, [messages, selectedRecipientId, activeTab]);
 
+  // Unread calculation helpers placed before filtered lists for sorting
+  const getUnreadCount = useCallback((tab, recId) => {
+    return (messages || []).filter(msg => {
+      const msgSenderRole = (msg.senderRole || '').toLowerCase();
+      const msgTargetRole = (msg.targetRole || '').toLowerCase();
+      const isMyMsg =
+        myAllIds.includes(msg.senderId) ||
+        (normRole === 'admin' && (msgSenderRole === 'admin' || msg.senderId === 'admin')) ||
+        (normRole === 'student' && isMsgSenderStudent(msg, currentStudentRecord || currentStudent, myAllIds));
+      if (isMyMsg) return false;
+
+      const isRead = Array.isArray(msg.readBy) && (myAllIds.some(id => msg.readBy.includes(id)) || msg.readBy.includes(myId));
+      if (isRead) return false;
+
+      if (tab === 'broadcast') {
+        if (recId === 'admin') {
+          if (normRole === 'student') {
+            return (msgSenderRole === 'admin' || msg.senderId === 'admin') &&
+              (isMsgTargetStudent(msg, currentStudentRecord || currentStudent, myAllIds) || myAllIds.includes(msg.targetId));
+          }
+          return (msgSenderRole === 'admin' || msg.senderId === 'admin') && myAllIds.includes(msg.targetId);
+        } else if (msg.targetId === 'all') {
+          if (recId === 'all') return msgTargetRole === 'all' || !msgTargetRole;
+          if (recId === 'teachers') return msgTargetRole === 'teacher';
+          if (recId === 'students') return msgTargetRole === 'student';
+        }
+      } else if (tab === 'teachers') {
+        const teacherObj = (teachers || []).find(t => t.id === recId || t._docId === recId);
+        const tIds = [recId, teacherObj?.id, teacherObj?._docId, teacherObj?.email?.toLowerCase()].filter(Boolean);
+        if (normRole === 'admin') {
+          return tIds.includes(msg.senderId) && (msgTargetRole === 'admin' || msg.targetId === 'admin' || myAllIds.includes(msg.targetId));
+        }
+        return tIds.includes(msg.senderId) && myAllIds.includes(msg.targetId);
+      } else if (tab === 'students') {
+        const studentObj = (students || []).find(s => s.id === recId || s._docId === recId);
+        if (normRole === 'admin') {
+          return isMsgSenderStudent(msg, studentObj, [recId]) && (msgTargetRole === 'admin' || msg.targetId === 'admin' || myAllIds.includes(msg.targetId));
+        }
+        if (normRole === 'student') {
+          return isMsgSenderStudent(msg, studentObj, [recId]) && isMsgTargetStudent(msg, currentStudentRecord || currentStudent, myAllIds);
+        }
+        return isMsgSenderStudent(msg, studentObj, [recId]) && myAllIds.includes(msg.targetId);
+      }
+      return false;
+    }).length;
+  }, [messages, normRole, myId, myAllIds, teachers, students, currentStudentRecord, currentStudent, isMsgSenderStudent, isMsgTargetStudent]);
+
+  const getTabUnreadCount = useCallback((tab) => {
+    return (messages || []).filter(msg => {
+      const msgSenderRole = (msg.senderRole || '').toLowerCase();
+      const msgTargetRole = (msg.targetRole || '').toLowerCase();
+      const isMyMsg =
+        myAllIds.includes(msg.senderId) ||
+        (normRole === 'admin' && (msgSenderRole === 'admin' || msg.senderId === 'admin')) ||
+        (normRole === 'student' && isMsgSenderStudent(msg, currentStudentRecord || currentStudent, myAllIds));
+      if (isMyMsg) return false;
+
+      const isRead = Array.isArray(msg.readBy) && (myAllIds.some(id => msg.readBy.includes(id)) || msg.readBy.includes(myId));
+      if (isRead) return false;
+
+      if (tab === 'broadcast') {
+        if (msg.targetId === 'all') {
+          if (normRole === 'admin') return true;
+          if (normRole === 'teacher' && (msgTargetRole === 'teacher' || msgTargetRole === 'all' || !msgTargetRole)) return true;
+          if (normRole === 'student' && (msgTargetRole === 'student' || msgTargetRole === 'all' || !msgTargetRole)) return true;
+        }
+        if (normRole === 'student' && (msgSenderRole === 'admin' || msg.senderId === 'admin')) {
+          return isMsgTargetStudent(msg, currentStudentRecord || currentStudent, myAllIds) || myAllIds.includes(msg.targetId);
+        }
+        if ((msgSenderRole === 'admin' || msg.senderId === 'admin') && myAllIds.includes(msg.targetId)) return true;
+      } else if (tab === 'teachers') {
+        if (normRole === 'admin') {
+          return (msgSenderRole === 'teacher' || !msgSenderRole) && (msgTargetRole === 'admin' || msg.targetId === 'admin' || myAllIds.includes(msg.targetId));
+        }
+        return msgSenderRole === 'teacher' && myAllIds.includes(msg.targetId);
+      } else if (tab === 'students') {
+        if (normRole === 'admin') {
+          return (msgSenderRole === 'student' || !msgSenderRole) && (msgTargetRole === 'admin' || msg.targetId === 'admin' || myAllIds.includes(msg.targetId));
+        }
+        if (normRole === 'student') {
+          return msgSenderRole === 'student' && isMsgTargetStudent(msg, currentStudentRecord || currentStudent, myAllIds);
+        }
+        return msgSenderRole === 'student' && myAllIds.includes(msg.targetId);
+      }
+      return false;
+    }).length;
+  }, [messages, normRole, myId, myAllIds, currentStudentRecord, currentStudent, isMsgSenderStudent, isMsgTargetStudent]);
+
+  const totalUnread = useMemo(() => {
+    if (normRole === 'student') {
+      return getTabUnreadCount('broadcast') + getTabUnreadCount('teachers');
+    }
+    return getTabUnreadCount('broadcast') + getTabUnreadCount('students') + getTabUnreadCount('teachers');
+  }, [getTabUnreadCount, normRole]);
+
+  // Teachers list - on student desktop, teachers with unread or recent messages come first!
   const filteredTeachers = useMemo(() => {
-    return (teachers || [])
+    const list = (teachers || [])
       .filter((t) => {
         // Exclude self if logged in as teacher
-        if (role === 'teacher') {
-          if (user?.id && t.id === user.id) return false;
-          if (user?.email && t.email && t.email.toLowerCase().trim() === user.email.toLowerCase().trim()) return false;
+        if (normRole === 'teacher') {
+          if (myAllIds.includes(t.id)) return false;
+          if (t._docId && myAllIds.includes(t._docId)) return false;
+          if (t.email && myAllIds.includes(t.email.toLowerCase().trim())) return false;
           if (user?.name && t.name && t.name.toLowerCase().trim() === user.name.toLowerCase().trim()) return false;
         }
         return true;
@@ -77,20 +346,54 @@ export default function Messages() {
           (t.name || '').toLowerCase().includes((teacherSearch || '').toLowerCase()) ||
           (t.subject && t.subject.toLowerCase().includes((teacherSearch || '').toLowerCase()))
       );
-  }, [teachers, teacherSearch, role, user]);
+
+    return [...list].sort((a, b) => {
+      const aId = a.id || a._docId;
+      const bId = b.id || b._docId;
+      const aUnread = getUnreadCount('teachers', aId);
+      const bUnread = getUnreadCount('teachers', bId);
+
+      // Unread messages first
+      if (aUnread > 0 && bUnread === 0) return -1;
+      if (aUnread === 0 && bUnread > 0) return 1;
+      if (aUnread !== bUnread) return bUnread - aUnread;
+
+      // Teachers who sent any recent messages
+      const aLastMsg = (messages || [])
+        .filter((m) => (m.senderId === aId || m.targetId === aId || (a.email && (m.senderEmail === a.email.toLowerCase() || m.targetEmail === a.email.toLowerCase()))))
+        .slice(-1)[0];
+      const bLastMsg = (messages || [])
+        .filter((m) => (m.senderId === bId || m.targetId === bId || (b.email && (m.senderEmail === b.email.toLowerCase() || m.targetEmail === b.email.toLowerCase()))))
+        .slice(-1)[0];
+
+      if (aLastMsg && !bLastMsg) return -1;
+      if (!aLastMsg && bLastMsg) return 1;
+      if (aLastMsg && bLastMsg) {
+        const timeDiff = new Date(bLastMsg.timestamp || 0) - new Date(aLastMsg.timestamp || 0);
+        if (timeDiff !== 0) return timeDiff;
+      }
+
+      // If student has a class teacher, sort matching class
+      if (normRole === 'student' && currentStudentRecord?.class) {
+        const aClassMatch = String(a.class) === String(currentStudentRecord.class);
+        const bClassMatch = String(b.class) === String(currentStudentRecord.class);
+        if (aClassMatch && !bClassMatch) return -1;
+        if (!aClassMatch && bClassMatch) return 1;
+      }
+
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }, [teachers, teacherSearch, normRole, myAllIds, user, getUnreadCount, messages, currentStudentRecord]);
 
   const filteredStudents = useMemo(() => {
-    return (students || [])
+    const list = (students || [])
       .filter((s) => {
         // Exclude self if logged in as student
-        if (role === 'student') {
-          if (currentStudent?.id && s.id === currentStudent.id) return false;
-          if (
-            currentStudent?.rollNumber &&
-            s.rollNumber === currentStudent.rollNumber &&
-            s.class === currentStudent.class &&
-            s.section === currentStudent.section
-          ) return false;
+        if (normRole === 'student') {
+          if (s.id && myAllIds.includes(s.id)) return false;
+          if (s._docId && myAllIds.includes(s._docId)) return false;
+          if (s.email && myAllIds.includes(s.email.toLowerCase().trim())) return false;
+          if (s.rollNumber && myAllIds.includes(String(s.rollNumber).toLowerCase().trim())) return false;
         }
         return true;
       })
@@ -100,28 +403,61 @@ export default function Messages() {
           (s.rollNumber && String(s.rollNumber).includes(studentSearch || '')) ||
           (`${s.class}-${s.section}`).toLowerCase().includes((studentSearch || '').toLowerCase())
       );
-  }, [students, studentSearch, role, currentStudent]);
+
+    // If logged in as student, sort classmates in the same class to the top
+    if (normRole === 'student' && currentStudentRecord?.class) {
+      return [...list].sort((a, b) => {
+        const aSameClass = String(a.class) === String(currentStudentRecord.class);
+        const bSameClass = String(b.class) === String(currentStudentRecord.class);
+        if (aSameClass && !bSameClass) return -1;
+        if (!aSameClass && bSameClass) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    }
+
+    return list;
+  }, [students, studentSearch, normRole, myAllIds, currentStudentRecord]);
 
   // Ensure valid recipient selection when switching tabs or when filtered list changes
   useEffect(() => {
+    if (normRole === 'student' && activeTab === 'students') {
+      setActiveTab('broadcast');
+      setSelectedRecipientId('all');
+      return;
+    }
     if (activeTab === 'broadcast') {
       if (!['all', 'teachers', 'students', 'admin'].includes(selectedRecipientId)) {
         setSelectedRecipientId('all');
       }
     } else if (activeTab === 'teachers') {
-      const exists = filteredTeachers.some((t) => t.id === selectedRecipientId);
+      const exists = filteredTeachers.some((t) => (t.id || t._docId) === selectedRecipientId);
       if (!exists && filteredTeachers.length > 0) {
-        setSelectedRecipientId(filteredTeachers[0].id);
+        setSelectedRecipientId(filteredTeachers[0].id || filteredTeachers[0]._docId);
       }
     } else if (activeTab === 'students') {
-      const exists = filteredStudents.some((s) => s.id === selectedRecipientId);
+      const exists = filteredStudents.some((s) => (s.id || s._docId) === selectedRecipientId);
       if (!exists && filteredStudents.length > 0) {
-        setSelectedRecipientId(filteredStudents[0].id);
+        setSelectedRecipientId(filteredStudents[0].id || filteredStudents[0]._docId);
       }
     }
-  }, [activeTab, selectedRecipientId, filteredTeachers, filteredStudents]);
+  }, [activeTab, selectedRecipientId, filteredTeachers, filteredStudents, normRole]);
+
+  // If student has unread teacher messages, prioritize switching to teacher tab so it comes first
+  const studentInitialTeacherCheck = useRef(false);
+  useEffect(() => {
+    if (!studentInitialTeacherCheck.current && normRole === 'student' && filteredTeachers.length > 0) {
+      const unreadTeachers = getTabUnreadCount('teachers');
+      if (unreadTeachers > 0) {
+        studentInitialTeacherCheck.current = true;
+        setActiveTab('teachers');
+        const firstTeacherId = filteredTeachers[0]?.id || filteredTeachers[0]?._docId;
+        if (firstTeacherId) setSelectedRecipientId(firstTeacherId);
+      }
+    }
+  }, [normRole, filteredTeachers, getTabUnreadCount]);
 
   const handleAttachmentClick = (type) => {
+    if (normRole === 'student') return;
     if (!fileInputRef.current) return;
     if (type === 'image') {
       fileInputRef.current.accept = 'image/*,video/*';
@@ -138,6 +474,7 @@ export default function Messages() {
   };
 
   const handleFileChange = (e) => {
+    if (normRole === 'student') return;
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -159,6 +496,10 @@ export default function Messages() {
   };
 
   const handleSend = (textToSend, attachment = null) => {
+    if (normRole === 'student') {
+      addToast?.('Students cannot send or reply to messages. Messages are read-only.', 'warning');
+      return;
+    }
     const text = (typeof textToSend === 'string' ? textToSend : messageText).trim();
     if (!text && !attachment) return;
 
@@ -176,22 +517,69 @@ export default function Messages() {
     } else if (activeTab === 'teachers') {
       targetRole = 'teacher';
       targetId = selectedRecipientId;
-      if (!targetId) return;
+      if (!targetId) {
+        addToast?.('Please select a teacher to send a message.', 'warning');
+        return;
+      }
     } else if (activeTab === 'students') {
       targetRole = 'student';
       targetId = selectedRecipientId;
-      if (!targetId) return;
+      if (!targetId) {
+        addToast?.('Please select a student to send a message.', 'warning');
+        return;
+      }
     }
 
-    const senderId = role === 'student' ? currentStudent?.id : user?.id || 'admin';
-    const senderName = role === 'student' ? currentStudent?.name : user?.name || 'Admin';
+    const senderId = normRole === 'student'
+      ? (currentStudentRecord?.id || currentStudentRecord?._docId || currentStudent?.id || currentStudent?._docId || 'student')
+      : normRole === 'admin'
+      ? 'admin'
+      : (currentTeacherRecord?.id || currentTeacherRecord?._docId || user?.id || user?.uid || 'admin');
+
+    const senderName = normRole === 'student'
+      ? (currentStudentRecord?.name || currentStudent?.name || 'Student')
+      : normRole === 'admin'
+      ? (user?.name || 'Administrator')
+      : (currentTeacherRecord?.name || user?.name || 'Teacher');
+
+    // Enrich message metadata for resilient multi-tab matching
+    let targetName = '';
+    let targetRollNumber = '';
+    let targetEmail = '';
+    let targetParentEmail = '';
+
+    if (activeTab === 'students' && selectedStudent) {
+      targetName = selectedStudent.name || '';
+      targetRollNumber = selectedStudent.rollNumber ? String(selectedStudent.rollNumber).trim() : '';
+      targetEmail = (selectedStudent.email || selectedStudent.parentEmail || '').trim().toLowerCase();
+      targetParentEmail = (selectedStudent.parentEmail || '').trim().toLowerCase();
+    } else if (activeTab === 'teachers' && selectedTeacher) {
+      targetName = selectedTeacher.name || '';
+      targetEmail = (selectedTeacher.email || '').trim().toLowerCase();
+    }
+
+    let senderRollNumber = '';
+    let senderEmail = '';
+    if (normRole === 'student') {
+      const stuObj = currentStudentRecord || currentStudent;
+      senderRollNumber = stuObj?.rollNumber ? String(stuObj.rollNumber).trim() : '';
+      senderEmail = (stuObj?.email || stuObj?.parentEmail || '').trim().toLowerCase();
+    } else {
+      senderEmail = (user?.email || currentTeacherRecord?.email || '').trim().toLowerCase();
+    }
 
     addMessage({
       senderId,
       senderName,
-      senderRole: role || 'admin',
+      senderRole: normRole,
+      senderRollNumber,
+      senderEmail,
       targetRole,
       targetId,
+      targetName,
+      targetRollNumber,
+      targetEmail,
+      targetParentEmail,
       text,
       attachment,
     });
@@ -203,48 +591,142 @@ export default function Messages() {
 
   // Filter messages for current conversation
   const conversationMessages = useMemo(() => {
-    const myId = role === 'student' ? currentStudent?.id : (user?.id || 'admin');
+    return (messages || [])
+      .filter((msg) => {
+        const msgSenderRole = (msg.senderRole || '').toLowerCase();
+        const msgTargetRole = (msg.targetRole || '').toLowerCase();
+        const msgSenderId = msg.senderId;
+        const msgTargetId = msg.targetId;
 
-    return messages.filter((msg) => {
-      if (activeTab === 'broadcast') {
-        if (selectedRecipientId === 'admin') {
-          return (
-            (msg.senderRole === role && msg.senderId === myId && msg.targetRole === 'admin') ||
-            (msg.senderRole === 'admin' && msg.targetId === myId)
-          );
-        } else if (msg.targetId === 'all') {
-          if (selectedRecipientId === 'all') return true;
-          if (selectedRecipientId === 'teachers' && (msg.targetRole === 'teacher' || msg.targetRole === 'all')) return true;
-          if (selectedRecipientId === 'students' && (msg.targetRole === 'student' || msg.targetRole === 'all')) return true;
+        // 1. Broadcast channels
+        if (activeTab === 'broadcast') {
+          if (selectedRecipientId === 'admin') {
+            // Direct 1-on-1 channel to School Administrator
+            if (normRole === 'student') {
+              const myStu = currentStudentRecord || currentStudent;
+              const isSentByMeToAdmin =
+                (isMsgSenderStudent(msg, myStu, myAllIds) || myAllIds.includes(msgSenderId)) &&
+                (msgTargetRole === 'admin' || msgTargetId === 'admin');
+              const isSentByAdminToMe =
+                (msgSenderRole === 'admin' || msgSenderId === 'admin') &&
+                (isMsgTargetStudent(msg, myStu, myAllIds) || myAllIds.includes(msgTargetId));
+              return isSentByMeToAdmin || isSentByAdminToMe;
+            }
+
+            if (normRole === 'teacher') {
+              const isSentByMeToAdmin =
+                myAllIds.includes(msgSenderId) &&
+                (msgTargetRole === 'admin' || msgTargetId === 'admin');
+              const isSentByAdminToMe =
+                (msgSenderRole === 'admin' || msgSenderId === 'admin') &&
+                myAllIds.includes(msgTargetId);
+              return isSentByMeToAdmin || isSentByAdminToMe;
+            }
+
+            return false;
+          }
+
+          if (msgTargetId === 'all' || !msgTargetId) {
+            if (selectedRecipientId === 'all') {
+              return msgTargetRole === 'all' || !msgTargetRole;
+            }
+            if (selectedRecipientId === 'teachers') {
+              return normRole !== 'student' && msgTargetRole === 'teacher';
+            }
+            if (selectedRecipientId === 'students') {
+              return msgTargetRole === 'student';
+            }
+          }
+          return false;
         }
-      } else if (activeTab === 'teachers' || activeTab === 'students') {
-        return (
-          (msg.senderId === myId && msg.targetId === selectedRecipientId) ||
-          (msg.senderId === selectedRecipientId && msg.targetId === myId)
-        );
-      }
-      return false;
-    });
-  }, [messages, activeTab, selectedRecipientId, role, currentStudent, user]);
+
+        // 2. Teachers tab
+        if (activeTab === 'teachers') {
+          if (!selectedRecipientId) return false;
+
+          if (normRole === 'admin') {
+            // Admin viewing a specific teacher
+            const isTeacherToAdmin =
+              (recipientAllIds.includes(msgSenderId) || (msg.senderEmail && recipientAllIds.includes(msg.senderEmail.toLowerCase()))) &&
+              (msgTargetRole === 'admin' || msgTargetId === 'admin' || myAllIds.includes(msgTargetId));
+            const isAdminToTeacher =
+              (msgSenderRole === 'admin' || myAllIds.includes(msgSenderId)) &&
+              (recipientAllIds.includes(msgTargetId) || (msg.targetEmail && recipientAllIds.includes(msg.targetEmail.toLowerCase())));
+            return isTeacherToAdmin || isAdminToTeacher;
+          }
+
+          // Direct 1-on-1 (Teacher to Teacher, or Student to Teacher)
+          const isSentByMeToTarget =
+            myAllIds.includes(msgSenderId) && recipientAllIds.includes(msgTargetId);
+          const isSentByTargetToMe =
+            recipientAllIds.includes(msgSenderId) && myAllIds.includes(msgTargetId);
+          return isSentByMeToTarget || isSentByTargetToMe;
+        }
+
+        // 3. Students tab
+        if (activeTab === 'students') {
+          if (!selectedRecipientId) return false;
+
+          if (normRole === 'admin') {
+            // Admin viewing a specific student
+            const isStudentToAdmin =
+              isMsgSenderStudent(msg, selectedStudent, recipientAllIds) &&
+              (msgTargetRole === 'admin' || msgTargetId === 'admin' || myAllIds.includes(msgTargetId));
+            const isAdminToStudent =
+              (msgSenderRole === 'admin' || myAllIds.includes(msgSenderId)) &&
+              isMsgTargetStudent(msg, selectedStudent, recipientAllIds);
+            return isStudentToAdmin || isAdminToStudent;
+          }
+
+          if (normRole === 'student') {
+            // Student viewing a classmate
+            const myStu = currentStudentRecord || currentStudent;
+            const isSentByMeToTarget =
+              (isMsgSenderStudent(msg, myStu, myAllIds) || myAllIds.includes(msgSenderId)) &&
+              (isMsgTargetStudent(msg, selectedStudent, recipientAllIds) || recipientAllIds.includes(msgTargetId));
+            const isSentByTargetToMe =
+              (isMsgSenderStudent(msg, selectedStudent, recipientAllIds) || recipientAllIds.includes(msgSenderId)) &&
+              (isMsgTargetStudent(msg, myStu, myAllIds) || myAllIds.includes(msgTargetId));
+            return isSentByMeToTarget || isSentByTargetToMe;
+          }
+
+          // Direct 1-on-1 (Teacher to Student)
+          const isSentByMeToTarget =
+            myAllIds.includes(msgSenderId) && (isMsgTargetStudent(msg, selectedStudent, recipientAllIds) || recipientAllIds.includes(msgTargetId));
+          const isSentByTargetToMe =
+            (isMsgSenderStudent(msg, selectedStudent, recipientAllIds) || recipientAllIds.includes(msgSenderId)) && myAllIds.includes(msgTargetId);
+          return isSentByMeToTarget || isSentByTargetToMe;
+        }
+
+        return false;
+      })
+      .sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
+  }, [messages, activeTab, selectedRecipientId, normRole, myAllIds, recipientAllIds, currentStudentRecord, currentStudent, selectedStudent, isMsgSenderStudent, isMsgTargetStudent]);
 
   useEffect(() => {
-    const myId = role === 'student' ? currentStudent?.id : (user?.id || 'admin');
-    const unread = conversationMessages.filter(m => m.senderId !== myId && (!Array.isArray(m.readBy) || !m.readBy.includes(myId)));
+    if (!myId || conversationMessages.length === 0) return;
+    const unread = conversationMessages.filter((m) => {
+      const isMyMsg =
+        myAllIds.includes(m.senderId) ||
+        (normRole === 'admin' && ((m.senderRole || '').toLowerCase() === 'admin' || m.senderId === 'admin')) ||
+        (normRole === 'student' && isMsgSenderStudent(m, currentStudentRecord || currentStudent, myAllIds));
+      const alreadyRead = Array.isArray(m.readBy) && (m.readBy.includes(myId) || myAllIds.some(id => m.readBy.includes(id)));
+      return !isMyMsg && !alreadyRead && !markedReadRef.current.has(m.id);
+    });
+
     if (unread.length > 0) {
+      unread.forEach(m => markedReadRef.current.add(m.id));
       markMessagesAsRead(unread.map(m => m.id), myId);
     }
-  }, [conversationMessages, role, currentStudent, user, markMessagesAsRead]);
+  }, [conversationMessages, myId, myAllIds, normRole, markMessagesAsRead, currentStudentRecord, currentStudent, isMsgSenderStudent]);
 
   // Apply chat search if active
   const filteredMessages = useMemo(() => {
-    const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
-    const validMessages = conversationMessages.filter(msg => (now - new Date(msg.timestamp).getTime()) < FORTY_EIGHT_HOURS);
-
-    if (!chatSearch.trim()) return validMessages;
-    return validMessages.filter((msg) =>
+    if (!chatSearch.trim()) return conversationMessages;
+    return conversationMessages.filter((msg) =>
       (msg.text || '').toLowerCase().includes(chatSearch.toLowerCase())
     );
-  }, [conversationMessages, chatSearch, now]);
+  }, [conversationMessages, chatSearch]);
 
 
   // Recipient Meta Info
@@ -287,17 +769,17 @@ export default function Messages() {
     }
 
     if (activeTab === 'students') {
-      const currentStu = students.find((s) => s.id === selectedRecipientId);
+      const currentStu = (students || []).find((s) => (s.id && s.id === selectedRecipientId) || (s._docId && s._docId === selectedRecipientId));
       return {
-        title: currentStu ? currentStu.name : 'Student Chat',
-        subtitle: currentStu ? `Class ${currentStu.class}-${currentStu.section} • Roll No. ${currentStu.rollNumber} • Direct Message` : 'Student message channel',
-        badge: currentStu ? `Class ${currentStu.class}-${currentStu.section}` : 'Student',
+        title: currentStu ? currentStu.name : (normRole === 'student' ? 'Classmate Chat' : 'Student Chat'),
+        subtitle: currentStu ? `Class ${currentStu.class}-${currentStu.section} • Roll No. ${currentStu.rollNumber} • Direct Message` : (normRole === 'student' ? 'Classmate message channel' : 'Student message channel'),
+        badge: currentStu ? `Class ${currentStu.class}-${currentStu.section}` : (normRole === 'student' ? 'Classmate' : 'Student'),
         icon: GraduationCap,
         color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
       };
     }
 
-    const currentTeacher = teachers.find((t) => t.id === selectedRecipientId);
+    const currentTeacher = (teachers || []).find((t) => (t.id && t.id === selectedRecipientId) || (t._docId && t._docId === selectedRecipientId));
     return {
       title: currentTeacher ? currentTeacher.name : 'Teacher Chat',
       subtitle: currentTeacher ? `Class ${currentTeacher.class}-${currentTeacher.section} Teacher • Direct Message` : 'Teacher message channel',
@@ -305,7 +787,7 @@ export default function Messages() {
       icon: UserCheck,
       color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
     };
-  }, [activeTab, selectedRecipientId, teachers, students]);
+  }, [activeTab, selectedRecipientId, teachers, students, normRole]);
 
   const handleCopy = (id, text) => {
     navigator.clipboard.writeText(text);
@@ -314,189 +796,166 @@ export default function Messages() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const getUnreadCount = useCallback((tab, recId) => {
-    const myId = role === 'student' ? currentStudent?.id : (user?.id || 'admin');
-    
-    // First, filter by 48 hour rule
-    const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
-    const validMessages = messages.filter(msg => (now - new Date(msg.timestamp).getTime()) < FORTY_EIGHT_HOURS);
-    
-    return validMessages.filter(msg => {
-      // Must not be my own message, and must not be read by me
-      if (msg.senderId === myId || (Array.isArray(msg.readBy) && msg.readBy.includes(myId))) return false;
-
-      if (tab === 'broadcast') {
-        if (recId === 'admin') {
-          return msg.senderRole === 'admin' && msg.targetId === myId;
-        } else if (msg.targetId === 'all') {
-          if (recId === 'all') return true;
-          if (recId === 'teachers' && (msg.targetRole === 'teacher' || msg.targetRole === 'all')) return true;
-          if (recId === 'students' && (msg.targetRole === 'student' || msg.targetRole === 'all')) return true;
-        }
-      } else if (tab === 'teachers' || tab === 'students') {
-        return msg.senderId === recId && msg.targetId === myId;
-      }
-      return false;
-    }).length;
-  }, [messages, role, currentStudent, user, now]);
-
-  const getTabUnreadCount = useCallback((tab) => {
-    const myId = role === 'student' ? currentStudent?.id : (user?.id || 'admin');
-    const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
-    const validMessages = messages.filter(msg => (now - new Date(msg.timestamp).getTime()) < FORTY_EIGHT_HOURS);
-    
-    return validMessages.filter(msg => {
-      if (msg.senderId === myId || (Array.isArray(msg.readBy) && msg.readBy.includes(myId))) return false;
-
-      if (tab === 'broadcast') {
-        if (msg.targetId === 'all') {
-          if (role === 'admin') return true;
-          if (role === 'teacher' && (msg.targetRole === 'teacher' || msg.targetRole === 'all')) return true;
-          if (role === 'student' && (msg.targetRole === 'student' || msg.targetRole === 'all')) return true;
-        }
-        if (msg.senderRole === 'admin' && msg.targetId === myId) return true;
-      } else if (tab === 'teachers') {
-        return msg.senderRole === 'teacher' && msg.targetId === myId;
-      } else if (tab === 'students') {
-        return msg.senderRole === 'student' && msg.targetId === myId;
-      }
-      return false;
-    }).length;
-  }, [messages, role, currentStudent, user, now]);
-
   return (
-    <div className="flex flex-col md:flex-row h-full min-h-0 overflow-hidden bg-transparent w-full max-w-full">
-      {/* ── LEFT RECIPIENT PANEL ── */}
-      {/* On mobile: full screen when mobileView==='list', hidden when 'chat'.
-          On desktop (md+): always shown as a fixed-width sidebar. */}
-      <div className={`w-full md:w-[280px] lg:w-[320px] flex-shrink-0 flex-col relative z-10 border-b md:border-b-0 md:border-r border-white/10 bg-[#0B0F19]/90 backdrop-blur-xl
+    <div className="flex flex-col md:flex-row h-full min-h-0 overflow-hidden bg-[#070A12] w-full max-w-full">
+      {/* ── LEFT SIDEBAR: CHANNELS & DIRECT MESSAGES ── */}
+      <div className={`w-full md:w-[280px] lg:w-[320px] flex-shrink-0 flex-col relative z-10 border-b md:border-b-0 md:border-r border-white/[0.08] bg-[#070A12]
         ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}
         h-full min-h-0`}>
         
-        {/* Top Navigation */}
-        <div className="flex-shrink-0 flex flex-col gap-1.5 p-3 border-b border-white/10 bg-black/20">
-          <button
-            onClick={() => {
-              setActiveTab('broadcast');
-              setSelectedRecipientId('all');
-            }}
-            className={`w-full p-2.5 rounded-xl text-sm font-semibold flex items-center justify-start gap-3 transition-all duration-200 cursor-pointer ${
-              activeTab === 'broadcast'
-                ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-[0_4px_15px_rgba(59,130,246,0.15)]'
-                : 'bg-[#111726]/60 hover:bg-[#151D30] border border-white/[0.06] text-slate-300'
-            }`}
-          >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === 'broadcast' ? 'bg-blue-500/20 text-blue-400' : 'bg-white/[0.04] text-slate-400'}`}>
-              <Megaphone size={14} />
+        {/* Top Header: Title & Total Unread badge */}
+        <div className="flex-shrink-0 px-4 pt-3.5 pb-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+              <MessageSquare size={15} />
             </div>
-            <div className="flex-1 flex justify-between items-center pr-1">
-              <span>Broadcasts</span>
-              {(() => {
-                const unread = getTabUnreadCount('broadcast');
-                if (unread > 0) return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]">{unread}</span>;
-                return null;
-              })()}
-            </div>
-          </button>
-          
-          {role !== 'student' && (
-            <button
-              onClick={() => {
-                setActiveTab('students');
-                setSelectedRecipientId(filteredStudents[0]?.id || null);
-                setStudentSearch('');
-              }}
-              className={`w-full p-2.5 rounded-xl text-sm font-semibold flex items-center justify-start gap-3 transition-all duration-200 cursor-pointer ${
-                activeTab === 'students'
-                  ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 shadow-[0_4px_15px_rgba(16,185,129,0.15)]'
-                  : 'bg-[#111726]/60 hover:bg-[#151D30] border border-white/[0.06] text-slate-300'
-              }`}
-            >
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === 'students' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/[0.04] text-slate-400'}`}>
-                <GraduationCap size={14} />
-              </div>
-              <div className="flex-1 flex justify-between items-center pr-1">
-                <span>Students</span>
-                {(() => {
-                  const unread = getTabUnreadCount('students');
-                  if (unread > 0) return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]">{unread}</span>;
-                  return null;
-                })()}
-              </div>
-            </button>
+            <h1 className="text-sm font-bold text-white tracking-tight">Messages</h1>
+          </div>
+          {totalUnread > 0 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {totalUnread} new
+            </span>
           )}
-          
-          <button
-            onClick={() => {
-              setActiveTab('teachers');
-              setSelectedRecipientId(filteredTeachers[0]?.id || null);
-            }}
-            className={`w-full p-2.5 rounded-xl text-sm font-semibold flex items-center justify-start gap-3 transition-all duration-200 cursor-pointer ${
-              activeTab === 'teachers'
-                ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-[0_4px_15px_rgba(59,130,246,0.15)]'
-                : 'bg-[#111726]/60 hover:bg-[#151D30] border border-white/[0.06] text-slate-300'
-            }`}
-          >
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeTab === 'teachers' ? 'bg-blue-500/20 text-blue-400' : 'bg-white/[0.04] text-slate-400'}`}>
-              <Users size={14} />
-            </div>
-            <div className="flex-1 flex justify-between items-center pr-1">
-              <span>Teachers</span>
-              {(() => {
-                const unread = getTabUnreadCount('teachers');
-                if (unread > 0) return <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]">{unread}</span>;
-                return null;
-              })()}
-            </div>
-          </button>
         </div>
 
-        {/* Recipient List Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Search for Teachers */}
+        {/* Segmented Pill Navigation: Single unified switcher bar */}
+        <div className="flex-shrink-0 px-3 pt-2.5 pb-2">
+          <div className="p-1 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center gap-1">
+            <button
+              onClick={() => {
+                setActiveTab('broadcast');
+                setSelectedRecipientId('all');
+              }}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
+                activeTab === 'broadcast'
+                  ? 'bg-blue-600/20 text-blue-400 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+              }`}
+              title="Broadcast announcements"
+            >
+              <Megaphone size={13} />
+              <span>Channels</span>
+              {getTabUnreadCount('broadcast') > 0 && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)] animate-pulse flex-shrink-0" />
+              )}
+              {getTabUnreadCount('broadcast') > 0 && (
+                <span className="w-4 h-4 rounded-full bg-blue-500 text-[9px] font-bold text-white flex items-center justify-center">
+                  {getTabUnreadCount('broadcast')}
+                </span>
+              )}
+            </button>
+
+            {normRole !== 'student' && (
+              <button
+                onClick={() => {
+                  setActiveTab('students');
+                  const firstId = filteredStudents[0]?.id || filteredStudents[0]?._docId || null;
+                  setSelectedRecipientId(firstId);
+                  setStudentSearch('');
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
+                  activeTab === 'students'
+                    ? 'bg-emerald-600/20 text-emerald-400 shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                }`}
+                title="Direct messages with students"
+              >
+                <GraduationCap size={13} />
+                <span>Students</span>
+                {getTabUnreadCount('students') > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)] animate-pulse flex-shrink-0" />
+                )}
+                {getTabUnreadCount('students') > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-emerald-500 text-[9px] font-bold text-white flex items-center justify-center">
+                    {getTabUnreadCount('students')}
+                  </span>
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={() => {
+                setActiveTab('teachers');
+                setSelectedRecipientId(filteredTeachers[0]?.id || null);
+                setTeacherSearch('');
+              }}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer relative ${
+                activeTab === 'teachers'
+                  ? 'bg-blue-600/20 text-blue-400 shadow-xs'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+              }`}
+              title="Direct messages with teachers"
+            >
+              <Users size={13} />
+              <span>Teachers</span>
+              {getTabUnreadCount('teachers') > 0 && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.9)] animate-pulse flex-shrink-0" />
+              )}
+              {getTabUnreadCount('teachers') > 0 && (
+                <span className="w-4 h-4 rounded-full bg-blue-500 text-[9px] font-bold text-white flex items-center justify-center">
+                  {getTabUnreadCount('teachers')}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Integrated Search Input for Students & Teachers */}
         {activeTab === 'teachers' && (
-          <div className="p-3 border-b border-white/10 flex-shrink-0">
+          <div className="px-3 pb-2 flex-shrink-0">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 type="text"
                 value={teacherSearch}
                 onChange={(e) => setTeacherSearch(e.target.value)}
-                placeholder="Search teacher or subject..."
-                className="w-full bg-[#111726] border border-white/[0.08] text-xs text-white placeholder-slate-500 rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                placeholder="Search faculty or subject..."
+                className="w-full bg-white/[0.03] border border-white/[0.06] text-xs text-white placeholder-slate-500 rounded-xl pl-8 pr-7 py-1.5 focus:outline-none focus:border-white/20 focus:bg-white/[0.05] transition-all"
               />
+              {teacherSearch && (
+                <button onClick={() => setTeacherSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                  <X size={12} />
+                </button>
+              )}
             </div>
           </div>
         )}
 
-        {/* Search for Students */}
-        {activeTab === 'students' && (
-          <div className="p-3 border-b border-white/10 flex-shrink-0">
+        {activeTab === 'students' && normRole !== 'student' && (
+          <div className="px-3 pb-2 flex-shrink-0">
             <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 type="text"
                 value={studentSearch}
                 onChange={(e) => setStudentSearch(e.target.value)}
-                placeholder="Search by name, roll no, class..."
-                className="w-full bg-[#111726] border border-white/[0.08] text-xs text-white placeholder-slate-500 rounded-xl pl-9 pr-3 py-2 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 transition-all"
+                placeholder="Search student or roll no..."
+                className="w-full bg-white/[0.03] border border-white/[0.06] text-xs text-white placeholder-slate-500 rounded-xl pl-8 pr-7 py-1.5 focus:outline-none focus:border-emerald-500/40 focus:bg-white/[0.05] transition-all"
               />
+              {studentSearch && (
+                <button onClick={() => setStudentSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                  <X size={12} />
+                </button>
+              )}
             </div>
           </div>
         )}
 
-        {/* Recipient List */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 custom-scrollbar">
+        {/* Borderless, Clean Conversation List */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5 custom-scrollbar">
+          {/* Channels / Broadcasts */}
           {activeTab === 'broadcast' && (
-            <>
+            <div className="space-y-0.5">
               {[
-                { id: 'all', title: 'Everyone', desc: 'School-wide announcements', icon: Megaphone, count: 'All' },
-                { id: 'students', title: 'All Students', desc: 'Student notices & alerts', icon: Users, count: 'Students' },
-                { id: 'teachers', title: 'All Teachers', desc: 'Staff & department memos', icon: UserCheck, count: 'Faculty' },
-                ...(role !== 'admin' ? [{ id: 'admin', title: 'School Admin', desc: 'Direct message to principal', icon: ShieldCheck, count: 'Admin' }] : [])
+                { id: 'all', title: 'Everyone', desc: 'School-wide announcements', icon: Megaphone, count: 'All', color: 'text-blue-400 bg-blue-500/10' },
+                { id: 'students', title: 'All Students', desc: 'Student notices & alerts', icon: GraduationCap, count: 'Students', color: 'text-emerald-400 bg-emerald-500/10' },
+                ...(normRole !== 'student' ? [{ id: 'teachers', title: 'All Teachers', desc: 'Staff & department memos', icon: UserCheck, count: 'Faculty', color: 'text-indigo-400 bg-indigo-500/10' }] : []),
+                ...(normRole !== 'admin' ? [{ id: 'admin', title: 'School Admin', desc: 'Direct message to administration', icon: ShieldCheck, count: 'Admin', color: 'text-purple-400 bg-purple-500/10' }] : [])
               ].map((b) => {
                 const Icon = b.icon;
                 const isSelected = selectedRecipientId === b.id;
+                const unread = getUnreadCount('broadcast', b.id);
                 return (
                   <button
                     key={b.id}
@@ -504,106 +963,100 @@ export default function Messages() {
                       setSelectedRecipientId(b.id);
                       setMobileView('chat');
                     }}
-                    className={`w-full p-3 rounded-xl flex items-center gap-3 text-left transition-all duration-200 cursor-pointer ${
+                    className={`w-full px-3 py-2.5 rounded-xl flex items-center gap-3 text-left transition-all duration-150 cursor-pointer group ${
                       isSelected
-                        ? 'bg-blue-600/20 border border-blue-500/40 shadow-[0_4px_20px_rgba(59,130,246,0.15)]'
-                        : 'bg-[#111726]/60 hover:bg-[#151D30] border border-white/[0.06] text-slate-300'
+                        ? 'bg-blue-500/10 text-white font-medium'
+                        : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
                     }`}
                   >
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        isSelected
-                          ? 'bg-blue-500/30 text-blue-400 border border-blue-400/30 shadow-[0_0_12px_rgba(59,130,246,0.25)]'
-                          : 'bg-white/[0.04] text-slate-400 border border-white/[0.06]'
-                      }`}
-                    >
-                      <Icon size={18} />
+                    <div className="relative flex-shrink-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'bg-blue-500 text-white shadow-xs shadow-blue-500/30'
+                            : `${b.color} group-hover:opacity-90`
+                        }`}
+                      >
+                        <Icon size={16} />
+                      </div>
+                      {unread > 0 && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#070A12] shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className={`text-sm font-semibold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-semibold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
                           {b.title}
                         </span>
-                        <div className="flex items-center gap-1.5">
-                          {(() => {
-                            const unread = getUnreadCount('broadcast', b.id);
-                            if (unread > 0) return (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-                                {unread}
-                              </span>
-                            );
-                            return null;
-                          })()}
-                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400">
+                        {unread > 0 ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-blue-500 text-white flex-shrink-0">
+                            {unread}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 group-hover:text-slate-400">
                             {b.count}
                           </span>
-                        </div>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-400 truncate">{b.desc}</p>
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">{b.desc}</p>
                     </div>
                   </button>
                 );
               })}
-
-              {/* Announcement Info Card */}
-              <div className="mt-4 p-3.5 rounded-xl bg-blue-500/[0.06] border border-blue-500/15">
-                <p className="text-[11px] font-medium text-blue-300 flex items-center gap-1.5 mb-1">
-                  <Sparkles size={12} className="text-blue-400" /> Real-time Delivery
-                </p>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Announcements sent here update instantly for connected students and teachers.
-                </p>
-              </div>
-            </>
+            </div>
           )}
 
-          {/* ── STUDENTS LIST ── */}
-          {activeTab === 'students' && (
-            <div className="space-y-1.5">
+          {/* Students List */}
+          {activeTab === 'students' && normRole !== 'student' && (
+            <div className="space-y-0.5">
               {filteredStudents.length === 0 && (
-                <div className="p-6 text-center text-slate-500 text-xs">
-                  {studentSearch ? 'No students found.' : 'No students registered yet.'}
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  {studentSearch ? 'No matching students found.' : 'No students registered.'}
                 </div>
               )}
               {filteredStudents.map((student) => {
-                const isSelected = selectedRecipientId === student.id;
-                const initials = student.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+                const sId = student.id || student._docId;
+                const isSelected = selectedRecipientId === sId || (student.id && selectedRecipientId === student.id) || (student._docId && selectedRecipientId === student._docId);
+                const initials = (student.name || 'S').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+                const unread = getUnreadCount('students', sId);
                 return (
                   <button
-                    key={student.id}
+                    key={sId}
                     onClick={() => {
-                      setSelectedRecipientId(student.id);
+                      setSelectedRecipientId(sId);
                       setMobileView('chat');
                     }}
-                    className={`w-full p-2.5 rounded-xl flex items-center gap-3 text-left transition-all duration-200 cursor-pointer ${
+                    className={`w-full px-3 py-2.5 rounded-xl flex items-center gap-3 text-left transition-all duration-150 cursor-pointer group ${
                       isSelected
-                        ? 'bg-emerald-600/20 border border-emerald-500/40 shadow-[0_4px_20px_rgba(16,185,129,0.15)]'
-                        : 'bg-[#111726]/60 hover:bg-[#151D30] border border-white/[0.06] text-slate-300'
+                        ? 'bg-emerald-500/10 text-white font-medium'
+                        : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
                     }`}
                   >
                     <div className="relative flex-shrink-0">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 font-bold text-xs">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs transition-all ${
+                        isSelected
+                          ? 'bg-emerald-500 text-white shadow-xs shadow-emerald-500/30'
+                          : 'bg-emerald-500/15 text-emerald-400 group-hover:bg-emerald-500/25'
+                      }`}>
                         {initials}
                       </div>
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0B0F19]" />
+                      {unread > 0 && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#070A12] shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <p className={`text-sm font-semibold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <p className={`text-xs font-semibold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
                           {student.name}
                         </p>
-                        {(() => {
-                          const unread = getUnreadCount('students', student.id);
-                          if (unread > 0) return (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500 text-white shadow-[0_0_10px_rgba(16,185,129,0.5)]">
-                              {unread}
-                            </span>
-                          );
-                          return null;
-                        })()}
+                        {unread > 0 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500 text-white flex-shrink-0">
+                            {unread}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-400 truncate">
-                        Class {student.class}-{student.section} • Roll #{student.rollNumber}
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                        Class {student.class}-{student.section} • #{student.rollNumber}
                       </p>
                     </div>
                   </button>
@@ -612,78 +1065,81 @@ export default function Messages() {
             </div>
           )}
 
+          {/* Teachers List */}
           {activeTab === 'teachers' && (
-            <div className="space-y-1.5">
+            <div className="space-y-0.5">
+              {filteredTeachers.length === 0 && (
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  {teacherSearch ? 'No teachers found.' : 'No other teachers registered.'}
+                </div>
+              )}
               {filteredTeachers.map((teacher) => {
-                const isSelected = selectedRecipientId === teacher.id;
+                const tId = teacher.id || teacher._docId;
+                const isSelected = selectedRecipientId === tId || (teacher.id && selectedRecipientId === teacher.id) || (teacher._docId && selectedRecipientId === teacher._docId);
+                const initials = (teacher.name || 'T').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+                const unread = getUnreadCount('teachers', tId);
                 return (
                   <button
-                    key={teacher.id}
+                    key={tId}
                     onClick={() => {
-                      setSelectedRecipientId(teacher.id);
+                      setSelectedRecipientId(tId);
                       setMobileView('chat');
                     }}
-                    className={`w-full p-2.5 rounded-xl flex items-center gap-3 text-left transition-all duration-200 cursor-pointer ${
+                    className={`w-full px-3 py-2.5 rounded-xl flex items-center gap-3 text-left transition-all duration-150 cursor-pointer group ${
                       isSelected
-                        ? 'bg-blue-600/20 border border-blue-500/40 shadow-[0_4px_20px_rgba(59,130,246,0.15)]'
-                        : 'bg-[#111726]/60 hover:bg-[#151D30] border border-white/[0.06] text-slate-300'
+                        ? 'bg-blue-500/10 text-white font-medium'
+                        : 'text-slate-300 hover:bg-white/[0.04] hover:text-white'
                     }`}
                   >
                     <div className="relative flex-shrink-0">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300 font-bold text-xs">
-                        {teacher.name.substring(0, 2).toUpperCase()}
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs transition-all ${
+                        isSelected
+                          ? 'bg-blue-500 text-white shadow-xs shadow-blue-500/30'
+                          : 'bg-blue-500/15 text-blue-400 group-hover:bg-blue-500/25'
+                      }`}>
+                        {initials}
                       </div>
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#0B0F19]" />
+                      {unread > 0 && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#070A12] shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse" />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <p className={`text-sm font-semibold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+                      <div className="flex items-center justify-between">
+                        <p className={`text-xs font-semibold truncate ${isSelected ? 'text-white' : 'text-slate-200'}`}>
                           {teacher.name}
                         </p>
-                        {(() => {
-                          const unread = getUnreadCount('teachers', teacher.id);
-                          if (unread > 0) return (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-                              {unread}
-                            </span>
-                          );
-                          return null;
-                        })()}
+                        {unread > 0 && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-blue-500 text-white flex-shrink-0">
+                            {unread}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-400 truncate">
-                        Class {teacher.class}-{teacher.section} • {teacher.subject || 'Teacher'}
+                      <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                        Class {teacher.class}-{teacher.section} • {teacher.subject || 'Faculty'}
                       </p>
                     </div>
                   </button>
                 );
               })}
-              {filteredTeachers.length === 0 && (
-                <div className="p-6 text-center text-slate-500 text-xs">
-                  {teacherSearch ? 'No teachers found matching search.' : 'No other teachers registered yet.'}
-                </div>
-              )}
             </div>
           )}
         </div>
       </div>
-    </div>
-    {/* end left panel */}
 
       {/* ── RIGHT CHAT PANEL ── */}
-      {/* On mobile: full screen when mobileView==='chat', hidden when 'list'.
-          On desktop (md+): flex-1 takes remaining space beside the left panel. */}
       <div className={`flex-1 min-w-0 min-h-0 h-full flex flex-col overflow-hidden bg-[#070A12] relative ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
-        {/* Chat Header */}
-        <div className="flex-shrink-0 h-[60px] sm:h-[64px] px-3.5 sm:px-5 flex items-center justify-between bg-[#0B0F19]/80 backdrop-blur-xl z-10 border-b border-white/5">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        
+        {/* Chat Header: Modern, streamlined 56px bar */}
+        <div className="flex-shrink-0 h-14 sm:h-16 px-4 sm:px-6 flex items-center justify-between bg-[#070A12] z-10">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={() => setMobileView('list')}
-              className="md:hidden p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-slate-300 hover:text-white transition-all flex items-center justify-center cursor-pointer active:scale-95 flex-shrink-0"
+              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer flex-shrink-0"
               title="Back to conversations"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={20} />
             </button>
-            <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 border ${recipientMeta?.color || 'text-blue-400 bg-blue-500/10 border-blue-500/20'}`}>
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${recipientMeta?.color || 'text-blue-400 bg-blue-500/10'}`}>
               {(() => {
                 const IconComponent = recipientMeta?.icon || UserCheck;
                 return <IconComponent size={18} />;
@@ -691,21 +1147,20 @@ export default function Messages() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm sm:text-base font-bold text-slate-200 dark:text-white truncate tracking-tight">
+                <h2 className="text-sm font-semibold text-white truncate tracking-tight">
                   {recipientMeta.title}
                 </h2>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 flex-shrink-0">
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/[0.06] text-slate-400 flex-shrink-0">
                   {recipientMeta.badge}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 truncate mt-0.5">{recipientMeta.subtitle}</p>
+              <p className="text-[11px] text-slate-400 truncate">{recipientMeta.subtitle}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Search messages in conversation */}
             {showSearchInput ? (
-              <div className="flex items-center gap-1.5 bg-[#111726] border border-white/15 rounded-xl px-2.5 py-1 text-xs">
+              <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.1] rounded-xl px-2.5 py-1 text-xs">
                 <Search size={13} className="text-slate-400" />
                 <input
                   type="text"
@@ -713,7 +1168,7 @@ export default function Messages() {
                   value={chatSearch}
                   onChange={(e) => setChatSearch(e.target.value)}
                   placeholder="Search in chat..."
-                  className="bg-transparent text-white text-xs placeholder-slate-500 focus:outline-none w-28 sm:w-40"
+                  className="bg-transparent text-white text-xs placeholder-slate-500 focus:outline-none w-28 sm:w-44"
                 />
                 <button onClick={() => { setShowSearchInput(false); setChatSearch(''); }} className="text-slate-400 hover:text-white">
                   <X size={13} />
@@ -722,45 +1177,48 @@ export default function Messages() {
             ) : (
               <button
                 onClick={() => setShowSearchInput(true)}
-                className="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
-                title="Search conversation"
+                className="w-8 h-8 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] flex items-center justify-center transition-colors cursor-pointer"
+                title="Search in conversation"
               >
-                <Search size={15} />
+                <Search size={16} />
               </button>
             )}
           </div>
         </div>
 
-        {/* Messages List Area */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 custom-scrollbar">
+        {/* Chat Feed */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 space-y-3.5 custom-scrollbar">
           {filteredMessages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full max-w-md mx-auto text-center py-10 px-4">
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mb-3 shadow-[0_0_25px_rgba(59,130,246,0.15)]">
+            <div className="flex flex-col items-center justify-center h-full max-w-sm mx-auto text-center py-12 px-4">
+              <div className="w-12 h-12 rounded-2xl bg-white/[0.04] flex items-center justify-center text-slate-400 mb-3">
                 {(() => {
                   const IconComponent = recipientMeta?.icon || UserCheck;
-                  return <IconComponent size={26} />;
+                  return <IconComponent size={22} />;
                 })()}
               </div>
-              <h3 className="text-base font-bold text-white mb-1">
-                {chatSearch ? 'No matching messages found' : `Welcome to ${recipientMeta.title}`}
+              <h3 className="text-sm font-semibold text-white mb-1">
+                {chatSearch ? 'No matching messages found' : recipientMeta.title}
               </h3>
-              <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
+              <p className="text-xs text-slate-400 leading-relaxed">
                 {chatSearch
-                  ? 'Try searching for a different keyword or clear the search.'
+                  ? 'Try searching for another keyword or clear the search field.'
                   : activeTab === 'students'
-                    ? 'Send a direct message to this student. They will see it in their portal.'
-                    : 'Send announcements, event reminders, or class updates to everyone in this channel.'}
+                    ? 'Start a direct message with this student. Updates sync in real-time.'
+                    : activeTab === 'teachers'
+                      ? 'Direct message channel with this faculty member.'
+                      : 'Post announcements, schedules, and memos to everyone in this channel.'}
               </p>
             </div>
           ) : (
             filteredMessages.map((msg) => {
-              const myId = role === 'student' ? currentStudent?.id : (user?.id || 'admin');
-              const isMe = msg.senderRole === role && msg.senderId === myId;
+              const isMe =
+                myAllIds.includes(msg.senderId) ||
+                (normRole === 'admin' && ((msg.senderRole || '').toLowerCase() === 'admin' || msg.senderId === 'admin'));
 
               const roleColors = {
-                admin: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-                teacher: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-                student: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                admin: 'bg-purple-500/15 text-purple-300',
+                teacher: 'bg-blue-500/15 text-blue-300',
+                student: 'bg-emerald-500/15 text-emerald-300',
               };
 
               return (
@@ -769,41 +1227,41 @@ export default function Messages() {
                   className={`group relative flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade-in`}
                 >
                   {/* Sender & Timestamp Header */}
-                  <div className="flex items-center gap-2 mb-1 px-1">
-                    <span className="text-xs font-semibold text-slate-300">
+                  <div className="flex items-center gap-1.5 mb-1 px-1">
+                    <span className="text-[11px] font-medium text-slate-300">
                       {isMe ? 'You' : msg.senderName}
                     </span>
                     <span
-                      className={`text-[9px] px-1.5 py-0.2 rounded font-semibold border ${
-                        roleColors[msg.senderRole] || 'bg-slate-500/15 text-slate-300 border-slate-500/30'
+                      className={`text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase ${
+                        roleColors[msg.senderRole] || 'bg-slate-500/15 text-slate-300'
                       }`}
                     >
-                      {msg.senderRole?.toUpperCase() || 'USER'}
+                      {msg.senderRole || 'user'}
                     </span>
-                    <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                    <span className="text-[10px] text-slate-500 flex items-center gap-0.5 ml-1">
                       <Clock size={10} />
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
 
-                  {/* Message Bubble */}
+                  {/* Message Bubble: Sleek rounded-2xl with clean tail and no double-bordered clutter */}
                   <div
-                    className={`relative max-w-[85%] md:max-w-[70%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed whitespace-pre-wrap shadow-lg transition-all ${
+                    className={`relative max-w-[85%] md:max-w-[70%] px-4 py-2.5 rounded-2xl text-[13.5px] leading-relaxed whitespace-pre-wrap transition-all ${
                       isMe
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-xs shadow-blue-500/10 border border-blue-400/20'
-                        : 'bg-[#111726]/95 border border-white/[0.1] text-slate-100 rounded-tl-xs shadow-black/40'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-xs shadow-sm shadow-blue-500/20'
+                        : 'bg-[#131927] border border-white/[0.06] text-slate-100 rounded-tl-xs shadow-sm'
                     }`}
                   >
                     {msg.text && <div>{msg.text}</div>}
                     
                     {msg.attachment && (
-                      <div className={`mt-2 ${!msg.text ? '-mt-1' : ''}`}>
+                      <div className={`mt-2 ${!msg.text ? '-mt-0.5' : ''}`}>
                         {msg.attachment.type === 'image' ? (
-                          <img src={msg.attachment.url} alt="attachment" className="max-w-[200px] max-h-[250px] object-cover rounded-lg border border-white/20 shadow-md cursor-pointer hover:opacity-90 transition-opacity" />
+                          <img src={msg.attachment.url} alt="attachment" className="max-w-[220px] max-h-[260px] object-cover rounded-xl border border-white/10 shadow-sm cursor-pointer hover:opacity-95 transition-opacity" />
                         ) : (
-                          <div className={`flex items-center gap-2 p-2.5 rounded-lg border shadow-sm ${isMe ? 'bg-black/20 border-white/20' : 'bg-[#151D30] border-white/10'}`}>
-                            <FileText size={18} className={isMe ? 'text-white' : 'text-slate-400'} />
-                            <a href={msg.attachment.url} download={msg.attachment.name} className={`text-sm truncate max-w-[150px] font-medium hover:underline ${isMe ? 'text-white' : 'text-blue-400'}`}>
+                          <div className={`flex items-center gap-2.5 p-2 rounded-xl border ${isMe ? 'bg-black/20 border-white/20' : 'bg-white/[0.04] border-white/10'}`}>
+                            <FileText size={16} className={isMe ? 'text-white' : 'text-blue-400'} />
+                            <a href={msg.attachment.url} download={msg.attachment.name} className={`text-xs truncate max-w-[160px] font-medium hover:underline ${isMe ? 'text-white' : 'text-blue-400'}`}>
                               {msg.attachment.name}
                             </a>
                           </div>
@@ -811,21 +1269,21 @@ export default function Messages() {
                       </div>
                     )}
 
-                    {/* Bottom Status Ticks */}
-                    <div className="flex items-center justify-end gap-1 mt-1 text-[10px] opacity-75">
-                      {isMe && <CheckCheck size={13} className="text-cyan-200" />}
+                    {/* Read Status Checks */}
+                    <div className="flex items-center justify-end gap-1 mt-0.5 text-[10px] opacity-75">
+                      {isMe && <CheckCheck size={12} className="text-cyan-200" />}
                     </div>
 
-                    {/* Hover Message Actions (Reactions, Copy, Delete) */}
+                    {/* Sleek Floating Action Bar on Hover */}
                     <div
                       className={`absolute top-0 -translate-y-1/2 ${
                         isMe ? 'left-2 -translate-x-full' : 'right-2 translate-x-full'
-                      } hidden group-hover:flex items-center gap-1 bg-[#0E1422] border border-white/15 px-1.5 py-1 rounded-xl shadow-xl z-20`}
+                      } hidden group-hover:flex items-center gap-0.5 bg-[#161D2F] border border-white/10 px-1.5 py-1 rounded-full shadow-xl z-20`}
                     >
                       <button
                         onClick={() => handleCopy(msg.id, msg.text)}
-                        className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-white/[0.08]"
-                        title="Copy text"
+                        className="p-1 text-slate-400 hover:text-white rounded-full hover:bg-white/[0.08]"
+                        title="Copy message"
                       >
                         {copiedId === msg.id ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
                       </button>
@@ -850,7 +1308,7 @@ export default function Messages() {
                       {(isMe || role === 'admin') && (
                         <button
                           onClick={() => deleteMessage(msg.id)}
-                          className="p-1 text-slate-400 hover:text-red-400 rounded-lg hover:bg-red-500/10"
+                          className="p-1 text-slate-400 hover:text-red-400 rounded-full hover:bg-red-500/10"
                           title="Delete message"
                         >
                           <Trash2 size={12} />
@@ -859,14 +1317,14 @@ export default function Messages() {
                     </div>
                   </div>
 
-                  {/* Reaction Badges */}
+                  {/* Reaction Chips */}
                   {msg.reactions && Object.keys(msg.reactions).length > 0 && (
                     <div className="flex items-center gap-1 mt-1 px-1">
                       {Object.entries(msg.reactions).map(([emoji, count]) => (
                         <button
                           key={emoji}
                           onClick={() => reactToMessage(msg.id, emoji)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.06] border border-white/[0.1] text-xs hover:bg-white/[0.12] transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs hover:bg-white/[0.08] transition-colors"
                         >
                           <span>{emoji}</span>
                           <span className="text-[10px] text-slate-400 font-medium">{count}</span>
@@ -881,112 +1339,145 @@ export default function Messages() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick Emoji Bar Popup */}
-        {showEmojiBar && role !== 'student' && (
-          <div className="flex-shrink-0 px-5 py-2 bg-[#0E1422] border-t border-white/10 flex items-center gap-2 overflow-x-auto custom-scrollbar animate-in slide-in-from-bottom-2 duration-150">
-            <span className="text-xs text-slate-400 font-medium mr-1">Quick Emojis:</span>
-            {EMOJIS.map((emoji) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => setMessageText((prev) => prev + emoji)}
-                className="w-8 h-8 rounded-lg hover:bg-white/[0.08] text-base flex items-center justify-center transition-transform hover:scale-125 cursor-pointer"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Bottom Input Area — flex-shrink-0 keeps it always visible.
-            pb-safe adds healthy bottom cushion (at least 14px on mobile) plus env(safe-area-inset-bottom) on iOS. */}
-        {role !== 'student' && (
-          <div className="flex-shrink-0 px-3 pt-2.5 sm:px-4 sm:pt-3.5 pb-safe bg-[#0B0F19]/90 border-t border-white/10 backdrop-blur-xl relative z-20">
-            <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="max-w-4xl mx-auto flex items-center gap-2 sm:gap-3">
-              {/* Attachment toggle */}
-              <div className="relative flex-shrink-0">
+        {/* Quick Emoji Bar */}
+        {(() => {
+          if (normRole === 'student') return null;
+          const isNoRecipient = (activeTab === 'teachers' && !selectedRecipientId) || (activeTab === 'students' && !selectedRecipientId);
+          return showEmojiBar && !isNoRecipient ? (
+            <div className="flex-shrink-0 px-4 py-1.5 bg-[#070A12] border-t border-white/[0.06] flex items-center gap-1.5 overflow-x-auto custom-scrollbar animate-fade-in">
+              <span className="text-[11px] text-slate-400 font-medium mr-1 flex-shrink-0">Quick Emojis:</span>
+              {EMOJIS.map((emoji) => (
                 <button
+                  key={emoji}
                   type="button"
-                  onClick={() => setShowAttachmentMenu((b) => !b)}
-                  className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
-                    showAttachmentMenu
-                      ? 'bg-blue-600/20 text-blue-400 border-blue-500/40'
-                      : 'bg-[#111726] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                  }`}
-                  title="Attach"
+                  onClick={() => setMessageText((prev) => prev + emoji)}
+                  className="w-7 h-7 rounded-lg hover:bg-white/[0.06] text-sm flex items-center justify-center transition-transform hover:scale-125 cursor-pointer flex-shrink-0"
                 >
-                  <Plus size={20} />
+                  {emoji}
                 </button>
-                
-                {/* Attachment Menu Popup */}
-                {showAttachmentMenu && (
-                  <div className="absolute bottom-[calc(100%+12px)] left-0 w-56 bg-[#181c25] border border-white/10 rounded-2xl shadow-2xl flex flex-col py-2 animate-in slide-in-from-bottom-2 duration-150 z-50">
-                    <button type="button" onClick={() => handleAttachmentClick('document')} className="w-full px-4 py-2.5 flex items-center gap-3.5 text-[15px] text-slate-200 hover:bg-white/[0.06] transition-colors cursor-pointer text-left">
-                      <div className="text-[#845ec2] flex items-center justify-center">
-                        <FileText size={22} strokeWidth={2.5} />
-                      </div>
-                      <span className="font-semibold tracking-wide">Document</span>
+              ))}
+            </div>
+          ) : null;
+        })()}
+
+        {/* Bottom Input Composer */}
+        {(() => {
+          if (normRole === 'student') {
+            return (
+              <div className="flex-shrink-0 px-4 py-3 bg-[#070A12] text-center text-xs text-slate-400 border-t border-white/[0.06] flex items-center justify-center gap-2">
+                <Lock size={13} className="text-slate-500" />
+                <span>Students can view all announcements and messages. Replying is disabled.</span>
+              </div>
+            );
+          }
+
+          const isNoRecipient = (activeTab === 'teachers' && !selectedRecipientId) || (activeTab === 'students' && !selectedRecipientId);
+
+          if (isNoRecipient) {
+            return (
+              <div className="flex-shrink-0 px-4 py-3 bg-[#070A12] text-center text-xs text-slate-500 border-t border-white/[0.04]">
+                {activeTab === 'teachers' ? 'Select a faculty member from the list to start messaging.' : 'Select a student from the list to start messaging.'}
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex-shrink-0 px-3 sm:px-4 py-2.5 sm:py-3 bg-[#070A12] relative z-20 pb-safe">
+              <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="max-w-4xl mx-auto">
+                <div className="flex items-center gap-1.5 bg-[#121826] border border-white/[0.08] focus-within:border-blue-500/40 focus-within:ring-2 focus-within:ring-blue-500/10 rounded-2xl p-1.5 transition-all">
+                  
+                  {/* Attachment Menu Toggle */}
+                  <div className="relative flex-shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setShowAttachmentMenu((b) => !b)}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors cursor-pointer ${
+                        showAttachmentMenu
+                          ? 'bg-blue-600/20 text-blue-400'
+                          : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                      }`}
+                      title="Attach file"
+                    >
+                      <Plus size={18} />
                     </button>
-                    <button type="button" onClick={() => handleAttachmentClick('image')} className="w-full px-4 py-2.5 flex items-center gap-3.5 text-[15px] text-slate-200 hover:bg-white/[0.06] transition-colors cursor-pointer text-left">
-                      <div className="text-[#0081cf] flex items-center justify-center">
-                        <ImageIcon size={22} strokeWidth={2.5} />
+
+                    {/* Attachment Menu Popup */}
+                    {showAttachmentMenu && (
+                      <div className="absolute bottom-[calc(100%+10px)] left-0 w-52 bg-[#161D2F] border border-white/10 rounded-xl shadow-2xl py-1.5 z-50 animate-fade-in">
+                        <button
+                          type="button"
+                          onClick={() => handleAttachmentClick('document')}
+                          className="w-full px-3.5 py-2 flex items-center gap-3 text-xs text-slate-200 hover:bg-white/[0.06] transition-colors cursor-pointer text-left font-medium"
+                        >
+                          <FileText size={16} className="text-purple-400" />
+                          <span>Document</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAttachmentClick('image')}
+                          className="w-full px-3.5 py-2 flex items-center gap-3 text-xs text-slate-200 hover:bg-white/[0.06] transition-colors cursor-pointer text-left font-medium"
+                        >
+                          <ImageIcon size={16} className="text-blue-400" />
+                          <span>Photo or Video</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAttachmentClick('camera')}
+                          className="w-full px-3.5 py-2 flex items-center gap-3 text-xs text-slate-200 hover:bg-white/[0.06] transition-colors cursor-pointer text-left font-medium"
+                        >
+                          <Camera size={16} className="text-pink-400" />
+                          <span>Camera</span>
+                        </button>
                       </div>
-                      <span className="font-semibold tracking-wide">Photos & videos</span>
-                    </button>
-                    <button type="button" onClick={() => handleAttachmentClick('camera')} className="w-full px-4 py-2.5 flex items-center gap-3.5 text-[15px] text-slate-200 hover:bg-white/[0.06] transition-colors cursor-pointer text-left">
-                      <div className="text-[#ff4b82] flex items-center justify-center">
-                        <Camera size={22} strokeWidth={2.5} />
-                      </div>
-                      <span className="font-semibold tracking-wide">Camera</span>
-                    </button>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Hidden file input */}
-              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
+                  {/* Hidden File Input */}
+                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
 
-              {/* Emoji bar toggle */}
-              <button
-                type="button"
-                onClick={() => setShowEmojiBar((b) => !b)}
-                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer flex-shrink-0 ${
-                  showEmojiBar
-                    ? 'bg-blue-600/20 text-blue-400 border-blue-500/40'
-                    : 'bg-[#111726] border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.06]'
-                }`}
-                title="Add Emoji"
-              >
-                <Smile size={18} />
-              </button>
+                  {/* Emoji Bar Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiBar((b) => !b)}
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors cursor-pointer flex-shrink-0 ${
+                      showEmojiBar
+                        ? 'bg-blue-600/20 text-blue-400'
+                        : 'text-slate-400 hover:text-white hover:bg-white/[0.06]'
+                    }`}
+                    title="Insert emoji"
+                  >
+                    <Smile size={17} />
+                  </button>
 
-              {/* Input box */}
-              <div className="flex-1 min-w-0 relative">
-                <input
-                  type="text"
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  placeholder={
-                    activeTab === 'broadcast'
-                      ? 'Post an announcement...'
-                      : `Message ${recipientMeta.title || ''}...`
-                  }
-                  className="w-full bg-[#111726] border border-white/10 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all shadow-inner"
-                />
-              </div>
+                  {/* Unified Text Input */}
+                  <input
+                    type="text"
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    placeholder={
+                      activeTab === 'broadcast'
+                        ? selectedRecipientId === 'admin'
+                          ? 'Message the School Administrator...'
+                          : 'Post an announcement to this channel...'
+                        : `Message ${recipientMeta.title || ''}...`
+                    }
+                    className="flex-1 bg-transparent border-0 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-0 px-2 py-1"
+                  />
 
-              {/* Send Button */}
-              <button
-                type="submit"
-                disabled={!messageText.trim()}
-                className="h-10 sm:h-11 px-3.5 sm:px-5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer active:scale-95 flex-shrink-0"
-              >
-                <Send size={15} />
-                <span className="hidden sm:inline">Send</span>
-              </button>
-            </form>
-          </div>
-        )}
+                  {/* Clean Send Button */}
+                  <button
+                    type="submit"
+                    disabled={!messageText.trim()}
+                    className="h-8 sm:h-9 px-3.5 sm:px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm shadow-blue-600/30 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer active:scale-95 flex-shrink-0"
+                  >
+                    <Send size={13} />
+                    <span className="hidden sm:inline">Send</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

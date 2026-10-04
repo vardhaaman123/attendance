@@ -1,10 +1,28 @@
-import { useState, useMemo } from 'react';
-import { Plus, Search, Edit2, Trash2, GraduationCap, Download, Upload, BookOpen, Layers, Phone, Mail, Eye, MoreVertical, BookMarked } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
+  GraduationCap,
+  Download,
+  Upload,
+  BookOpen,
+  Layers,
+  Mail,
+  Eye,
+  MoreVertical,
+  BookMarked,
+  Key,
+  RefreshCw,
+} from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import Modal from '../ui/Modal';
 import CustomSelect from '../ui/CustomSelect';
 import AddEditTeacherModal from './AddEditTeacherModal';
 import TeacherProfileModal from './TeacherProfileModal';
+import TeacherCredentialSlipModal from './TeacherCredentialSlipModal';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -28,15 +46,71 @@ function ConfirmDeleteTeacherModal({ open, teacher, onConfirm, onClose }) {
 }
 
 export default function TeacherList() {
-  const { teachers, deleteTeacher, addToast, students, saveTeachers } = useApp();
+  const { teachers, deleteTeacher, addToast, students, saveTeachers, refreshTeachers, recentlyUpdatedTeacherId } = useApp();
+  const { user, activeCollegeId } = useAuth();
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
   const [sectionFilter, setSectionFilter] = useState('all');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editTeacher, setEditTeacher] = useState(null);
   const [viewTeacher, setViewTeacher] = useState(null);
-  const [activeMenuTeacherId, setActiveMenuTeacherId] = useState(null);
+  const [slipTeacher, setSlipTeacher] = useState(null);
+  const [activeMenuTeacher, setActiveMenuTeacher] = useState(null);
+  const [menuPosition, setMenuPosition] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleToggleMenu = (e, teacher) => {
+    e.stopPropagation();
+    if (activeMenuTeacher?.id === teacher.id) {
+      setActiveMenuTeacher(null);
+      setMenuPosition(null);
+    } else {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const fitsBelow = rect.bottom + 210 <= window.innerHeight;
+      setActiveMenuTeacher(teacher);
+      setMenuPosition({
+        top: fitsBelow ? rect.bottom + 6 : Math.max(10, rect.top - 210),
+        right: Math.max(12, window.innerWidth - rect.right),
+      });
+    }
+  };
+
+  useEffect(() => {
+    const handleScrollOrResize = () => {
+      if (activeMenuTeacher) {
+        setActiveMenuTeacher(null);
+        setMenuPosition(null);
+      }
+    };
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
+  }, [activeMenuTeacher]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      if (refreshTeachers) {
+        await refreshTeachers();
+      }
+      addToast('Teacher data refreshed live from cloud.', 'success');
+    } catch {
+      addToast('Could not refresh teachers. Please check connection.', 'error');
+    } finally {
+      setTimeout(() => setIsRefreshing(false), 600);
+    }
+  };
+
+  // Auto-fetch teachers if empty on mount without waiting for full page reload
+  useEffect(() => {
+    if (teachers.length === 0 && refreshTeachers) {
+      refreshTeachers();
+    }
+  }, [teachers.length, refreshTeachers]);
 
   const filtered = useMemo(() => {
     let list = teachers || [];
@@ -146,8 +220,10 @@ export default function TeacherList() {
           const contact = getVal(row, ['Contact', 'Phone', 'Mobile', 'Mobile Number', 'Phone Number']) || '';
           const status = (getVal(row, ['Status']) || 'active').toLowerCase() === 'inactive' ? 'inactive' : 'active';
 
+          const effectiveCollege = user?.collegeId || activeCollegeId || 'dps_main';
+
           newTeachers.push({
-            id: `TCH${String(Date.now() + idx).slice(-4)}${Math.floor(Math.random() * 90 + 10)}`,
+            id: `TCH_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`,
             name,
             email,
             class: teacherClass,
@@ -156,7 +232,8 @@ export default function TeacherList() {
             contact,
             status,
             createdAt: new Date().toISOString(),
-            password: 'teacher123',
+            collegeId: effectiveCollege,
+            password: getVal(row, ['Password', 'Pass', 'Pin']) || 'teacher123',
           });
         });
 
@@ -188,12 +265,28 @@ export default function TeacherList() {
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Teachers</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Teachers</h1>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live Sync Active
+            </span>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            {teachers.length} faculty members assigned across classes
+            {teachers.length} faculty members assigned across classes • Updates in real-time
           </p>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="btn-secondary flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            title="Refresh teacher data live from Firestore"
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-blue-400' : 'text-slate-400'} />
+            <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Live Refresh'}</span>
+          </button>
           <button onClick={handleExportCSV} className="btn-secondary">
             <Download size={15} />
             <span className="hidden sm:inline">Export CSV</span>
@@ -311,7 +404,6 @@ export default function TeacherList() {
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Email</th>
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Class & Division</th>
                 <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3 hidden md:table-cell">Subject</th>
-                <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3 hidden lg:table-cell">Contact</th>
                 <th className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Status</th>
                 <th className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 px-4 py-3">Actions</th>
               </tr>
@@ -319,16 +411,22 @@ export default function TeacherList() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
+                  <td colSpan={6} className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
                     No teachers found matching your filters.
                   </td>
                 </tr>
               ) : (
                 filtered.map(teacher => {
+                  const isRecentlyUpdated = recentlyUpdatedTeacherId === teacher.id;
+
                   return (
                     <tr
                       key={teacher.id}
-                      className="border-b border-slate-100 dark:border-white/[0.06] last:border-0 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors"
+                      className={`border-b border-slate-100 dark:border-white/[0.06] last:border-0 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-all duration-300 ${
+                        isRecentlyUpdated
+                          ? 'bg-emerald-500/10 dark:bg-emerald-500/[0.12] ring-1 ring-emerald-500/30'
+                          : ''
+                      }`}
                     >
                       {/* Teacher name + initials avatar */}
                       <td className="px-4 py-3">
@@ -340,7 +438,14 @@ export default function TeacherList() {
                             {teacher.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{teacher.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{teacher.name}</p>
+                              {isRecentlyUpdated && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse whitespace-nowrap">
+                                  Updated!
+                                </span>
+                              )}
+                            </div>
                             <p className="text-[10px] text-slate-400 font-mono">{teacher.id}</p>
                           </div>
                         </div>
@@ -368,18 +473,6 @@ export default function TeacherList() {
                         </span>
                       </td>
 
-                      {/* Contact */}
-                      <td className="px-4 py-3 hidden lg:table-cell">
-                        {teacher.contact ? (
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                            <Phone size={12} className="text-slate-500 flex-shrink-0" />
-                            <span>{teacher.contact}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-500">—</span>
-                        )}
-                      </td>
-
                       {/* Status */}
                       <td className="px-4 py-3 text-center">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -387,31 +480,20 @@ export default function TeacherList() {
                         </span>
                       </td>
 
-                      {/* Actions */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => setViewTeacher(teacher)}
-                            className="p-1.5 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
-                            title="View Teacher Details"
-                          >
-                            <Eye size={15} />
-                          </button>
-                          <button
-                            onClick={() => setEditTeacher(teacher)}
-                            className="p-1.5 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
-                            title="Edit Teacher"
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(teacher)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
-                            title="Delete Teacher"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                      {/* Actions - Three-Dots Button */}
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleMenu(e, teacher)}
+                          className={`w-8 h-8 rounded-full inline-flex items-center justify-center transition-all cursor-pointer ${
+                            activeMenuTeacher?.id === teacher.id
+                              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-500/40'
+                              : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20 hover:text-slate-900 dark:hover:text-white'
+                          }`}
+                          title="Options"
+                        >
+                          <MoreVertical size={16} />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -434,105 +516,151 @@ export default function TeacherList() {
             No teachers found matching your filters.
           </div>
         ) : (
-          filtered.map(teacher => (
-            <div
-              key={teacher.id}
-              className={`rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-3 sm:p-4 shadow-sm dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl relative transition-all ${
-                activeMenuTeacherId === teacher.id ? 'z-30' : 'z-0'
-              }`}
-            >
-              {/* Single compact row: Avatar + Name + ID on left, Active Badge + 3-dots Menu on right */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-xs"
-                    style={{ background: `hsl(${(teacher.name.charCodeAt(0) * 53) % 360}, 65%, 48%)` }}
-                  >
-                    {teacher.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{teacher.name}</p>
-                    <p className="text-[10px] text-slate-400 font-mono">{teacher.id}</p>
-                  </div>
-                </div>
+          filtered.map(teacher => {
+            const isRecentlyUpdated = recentlyUpdatedTeacherId === teacher.id;
 
-                {/* Right side: Status Badge + 3-dots Kebab Menu */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    Active
-                  </span>
+            return (
+              <div
+                key={teacher.id}
+                className={`rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-3 sm:p-4 shadow-sm dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl relative transition-all ${
+                  isRecentlyUpdated ? 'ring-2 ring-emerald-500/50 bg-emerald-500/[0.04]' : ''
+                }`}
+              >
+                {/* Single compact row: Avatar + Name + ID on left, Active Badge + 3-dots Menu on right */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-xs"
+                      style={{ background: `hsl(${(teacher.name.charCodeAt(0) * 53) % 360}, 65%, 48%)` }}
+                    >
+                      {teacher.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{teacher.name}</p>
+                        {isRecentlyUpdated && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 animate-pulse">
+                            Updated!
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-mono">{teacher.id}</p>
+                    </div>
+                  </div>
 
-                  {/* Kebab 3-dots menu button */}
-                  <div className="relative">
+                  {/* Right side: Status Badge + 3-dots Kebab Menu */}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      Active
+                    </span>
+
+                    {/* Kebab 3-dots menu button */}
                     <button
                       type="button"
-                      onClick={() => setActiveMenuTeacherId(activeMenuTeacherId === teacher.id ? null : teacher.id)}
-                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-                        activeMenuTeacherId === teacher.id
-                          ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                          : 'text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08]'
+                      onClick={(e) => handleToggleMenu(e, teacher)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                        activeMenuTeacher?.id === teacher.id
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-2 ring-blue-500/40'
+                          : 'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-white/20 hover:text-slate-900 dark:hover:text-white'
                       }`}
                       title="Options"
                     >
                       <MoreVertical size={16} />
                     </button>
-
-                    {activeMenuTeacherId === teacher.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setActiveMenuTeacherId(null)}
-                        />
-                        <div className="absolute right-0 top-full mt-1.5 w-36 bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/15 rounded-2xl shadow-2xl py-1.5 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveMenuTeacherId(null);
-                              setViewTeacher(teacher);
-                            }}
-                            className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-blue-500/10 hover:text-blue-500 dark:hover:text-blue-400 flex items-center gap-2.5 transition-colors cursor-pointer"
-                          >
-                            <Eye size={14} className="text-blue-500 dark:text-blue-400" />
-                            <span>View</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveMenuTeacherId(null);
-                              setEditTeacher(teacher);
-                            }}
-                            className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-amber-500/10 hover:text-amber-500 dark:hover:text-amber-400 flex items-center gap-2.5 transition-colors cursor-pointer"
-                          >
-                            <Edit2 size={13} className="text-amber-500 dark:text-amber-400" />
-                            <span>Edit</span>
-                          </button>
-                          <div className="my-1 border-t border-slate-100 dark:border-white/[0.08]" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setActiveMenuTeacherId(null);
-                              setDeleteTarget(teacher);
-                            }}
-                            className="w-full px-3 py-2 text-left text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2.5 transition-colors cursor-pointer"
-                          >
-                            <Trash2 size={13} className="text-rose-500" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </>
-                    )}
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
 
         <div className="px-2 py-2 text-center text-xs text-slate-500 dark:text-slate-400">
           Showing {filtered.length} of {teachers.length} teachers
         </div>
       </div>
+
+      {/* Floating 3-dots Dropdown Menu (Fixed coordinates to prevent table overflow clipping) */}
+      {activeMenuTeacher && menuPosition && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => {
+              setActiveMenuTeacher(null);
+              setMenuPosition(null);
+            }}
+          />
+          <div
+            style={{ top: `${menuPosition.top}px`, right: `${menuPosition.right}px` }}
+            className="fixed w-52 bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/15 rounded-2xl shadow-2xl py-1.5 z-50 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="px-3 py-1.5 border-b border-slate-100 dark:border-white/[0.08] mb-1">
+              <p className="text-[11px] font-bold text-slate-900 dark:text-white truncate">
+                {activeMenuTeacher.name}
+              </p>
+              <p className="text-[10px] text-slate-400 font-mono truncate">
+                Class {activeMenuTeacher.class}-{activeMenuTeacher.section} • {activeMenuTeacher.subject || 'All Subjects'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const t = activeMenuTeacher;
+                setActiveMenuTeacher(null);
+                setMenuPosition(null);
+                setSlipTeacher(t);
+              }}
+              className="w-full px-3 py-2 text-left text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-2.5 transition-colors cursor-pointer"
+            >
+              <Key size={14} className="text-emerald-500 dark:text-emerald-400" />
+              <span>Credentials Slip</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const t = activeMenuTeacher;
+                setActiveMenuTeacher(null);
+                setMenuPosition(null);
+                setViewTeacher(t);
+              }}
+              className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-blue-500/10 hover:text-blue-500 dark:hover:text-blue-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+            >
+              <Eye size={14} className="text-blue-500 dark:text-blue-400" />
+              <span>View Details</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const t = activeMenuTeacher;
+                setActiveMenuTeacher(null);
+                setMenuPosition(null);
+                const fresh = (teachers || []).find(
+                  x => (x.id && (x.id === t.id || x._docId === t.id)) || (x.email && x.email === t.email)
+                ) || t;
+                setEditTeacher(fresh);
+              }}
+              className="w-full px-3 py-2 text-left text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-amber-500/10 hover:text-amber-500 dark:hover:text-amber-400 flex items-center gap-2.5 transition-colors cursor-pointer"
+            >
+              <Edit2 size={14} className="text-amber-500 dark:text-amber-400" />
+              <span>Edit Details</span>
+            </button>
+            <div className="my-1 border-t border-slate-100 dark:border-white/[0.08]" />
+            <button
+              type="button"
+              onClick={() => {
+                const t = activeMenuTeacher;
+                setActiveMenuTeacher(null);
+                setMenuPosition(null);
+                setDeleteTarget(t);
+              }}
+              className="w-full px-3 py-2 text-left text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 flex items-center gap-2.5 transition-colors cursor-pointer"
+            >
+              <Trash2 size={14} className="text-rose-500 dark:text-rose-400" />
+              <span>Delete Teacher</span>
+            </button>
+          </div>
+        </>
+      )}
 
       <ConfirmDeleteTeacherModal
         open={!!deleteTarget}
@@ -543,7 +671,15 @@ export default function TeacherList() {
 
       <AddEditTeacherModal
         open={addOpen || !!editTeacher}
-        teacher={editTeacher}
+        teacher={
+          editTeacher
+            ? (teachers || []).find(
+                t =>
+                  (t.id && (t.id === editTeacher.id || t._docId === editTeacher.id)) ||
+                  (t.email && t.email === editTeacher.email)
+              ) || editTeacher
+            : null
+        }
         onClose={() => {
           setAddOpen(false);
           setEditTeacher(null);
@@ -552,9 +688,31 @@ export default function TeacherList() {
 
       <TeacherProfileModal
         open={!!viewTeacher}
-        teacher={viewTeacher}
+        teacher={
+          viewTeacher
+            ? (teachers || []).find(
+                t =>
+                  (t.id && (t.id === viewTeacher.id || t._docId === viewTeacher.id)) ||
+                  (t.email && t.email === viewTeacher.email)
+              ) || viewTeacher
+            : null
+        }
         onClose={() => setViewTeacher(null)}
         onEdit={(t) => setEditTeacher(t)}
+      />
+
+      <TeacherCredentialSlipModal
+        open={!!slipTeacher}
+        teacher={
+          slipTeacher
+            ? (teachers || []).find(
+                t =>
+                  (t.id && (t.id === slipTeacher.id || t._docId === slipTeacher.id)) ||
+                  (t.email && t.email === slipTeacher.email)
+              ) || slipTeacher
+            : null
+        }
+        onClose={() => setSlipTeacher(null)}
       />
     </div>
   );

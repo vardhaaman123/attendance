@@ -19,6 +19,20 @@ export default function AppLayout() {
     setMobileOpen(false);
   }, [location.pathname]);
 
+  // Prevent back-forward cache (bfcache) from exposing protected screens after logout
+  useEffect(() => {
+    const handlePageShow = (event) => {
+      if (event.persisted) {
+        const token = sessionStorage.getItem('_attendify_sk');
+        if (!token) {
+          window.location.replace('/');
+        }
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+
   return (
     <div className="flex h-dvh bg-slate-50 dark:bg-[#070A12] overflow-hidden text-slate-900 dark:text-slate-100 max-w-full">
       {/* Desktop Sidebar */}

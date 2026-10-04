@@ -2,11 +2,10 @@ import { useState, useMemo, useEffect } from "react";
 import {
   BookOpen, Plus, Edit2, Trash2, Save,
   Search, Users, GraduationCap, Award, TrendingUp,
-  BarChart3, Check, AlertCircle, Clock
+  BarChart3, Check, AlertCircle
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
-import { getExamDaysRemaining } from "../../utils/marksUtils";
 import Modal from "../ui/Modal";
 
 const SUBJECTS = ["Mathematics","Science","English","Hindi","Social Studies","Computer Science","Sanskrit","Physical Education"];
@@ -25,9 +24,10 @@ function getGrade(pct) {
 function ExamModal({ open, exam, students, onSave, onClose }) {
   const [form, setForm] = useState({ name: "", subject: SUBJECTS[0], examType: EXAM_TYPES[0], maxMarks: 100, classFilter: "all", sectionFilter: "all", date: new Date().toISOString().split("T")[0], marks: {} });
   const [studentSearch, setStudentSearch] = useState("");
-  const availableClasses = useMemo(() => Array.from(new Set(students.map(s => s.class))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [students]);
-  const availableSections = useMemo(() => Array.from(new Set(students.filter(s => form.classFilter === "all" || s.class === form.classFilter).map(s => s.section))).sort(), [students, form.classFilter]);
-  const filteredStudents = useMemo(() => students.filter(s => (form.classFilter === "all" || s.class === form.classFilter) && (form.sectionFilter === "all" || s.section === form.sectionFilter)).sort((a, b) => a.name.localeCompare(b.name)), [students, form.classFilter, form.sectionFilter]);
+  const [nameError, setNameError] = useState("");
+  const availableClasses = useMemo(() => Array.from(new Set(students.map(s => String(s.class || '').trim()))).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [students]);
+  const availableSections = useMemo(() => Array.from(new Set(students.filter(s => form.classFilter === "all" || String(s.class || '').trim() === String(form.classFilter || '').trim()).map(s => String(s.section || '').trim().toUpperCase()))).filter(Boolean).sort(), [students, form.classFilter]);
+  const filteredStudents = useMemo(() => students.filter(s => (form.classFilter === "all" || String(s.class || '').trim() === String(form.classFilter || '').trim()) && (form.sectionFilter === "all" || String(s.section || '').trim().toUpperCase() === String(form.sectionFilter || '').trim().toUpperCase())).sort((a, b) => a.name.localeCompare(b.name)), [students, form.classFilter, form.sectionFilter]);
   const displayedStudents = useMemo(() => {
     if (!studentSearch.trim()) return filteredStudents;
     const q = studentSearch.trim().toLowerCase();
@@ -37,6 +37,7 @@ function ExamModal({ open, exam, students, onSave, onClose }) {
   useEffect(() => {
     if (!open) return;
     setStudentSearch("");
+    setNameError("");
     if (exam) { setForm({ ...exam }); }
     else { const fc = availableClasses[0] || "all"; setForm({ name: "", subject: SUBJECTS[0], examType: EXAM_TYPES[0], maxMarks: 100, classFilter: fc, sectionFilter: "all", date: new Date().toISOString().split("T")[0], marks: {} }); }
   }, [open, exam]);
@@ -46,10 +47,20 @@ function ExamModal({ open, exam, students, onSave, onClose }) {
   const enteredCount = filteredStudents.filter(s => form.marks[s.id] !== "" && form.marks[s.id] !== undefined).length;
 
   return (
-    <Modal open={open} onClose={onClose} title={exam ? "Edit Exam Marks" : "Add New Exam"}>
-      <div className="space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar pr-1">
+    <Modal open={open} onClose={onClose} title={exam ? "Edit Exam Marks" : "Add New Exam"} maxWidth="max-w-xl">
+      <div className="space-y-4 p-1">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Exam Name *</label><input type="text" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Mid-term Mathematics" className="input-field" /></div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Exam Name *</label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => { setForm(f => ({ ...f, name: e.target.value })); if (nameError) setNameError(""); }}
+              placeholder="e.g. Mid-term Mathematics"
+              className={`input-field ${nameError ? "border-red-400" : ""}`}
+            />
+            {nameError && <p className="text-[11px] text-red-500 mt-1">{nameError}</p>}
+          </div>
           <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Exam Type</label><select value={form.examType} onChange={e => setForm(f => ({ ...f, examType: e.target.value }))} className="input-field">{EXAM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
           <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Subject</label><select value={form.subject} onChange={e => setForm(f => ({ ...f, subject: e.target.value }))} className="input-field">{SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
           <div><label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Max Marks</label><input type="number" min={1} max={500} value={form.maxMarks} onChange={e => setForm(f => ({ ...f, maxMarks: Number(e.target.value) || 100 }))} className="input-field" /></div>
@@ -83,14 +94,31 @@ function ExamModal({ open, exam, students, onSave, onClose }) {
           )}
         </div>
 
-        <div className="flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3 sm:justify-end pt-2"><button type="button" onClick={onClose} className="btn-secondary w-full sm:w-auto min-h-[40px]">Cancel</button><button type="button" onClick={() => form.name.trim() && onSave(form)} disabled={!form.name.trim()} className="btn-primary w-full sm:w-auto min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"><Save size={15} /> {exam ? "Update Exam" : "Save Exam"}</button></div>
+        <div className="flex flex-col-reverse sm:flex-row gap-2.5 sm:gap-3 sm:justify-end pt-2">
+          <button type="button" onClick={onClose} className="btn-secondary w-full sm:w-auto min-h-[40px]">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!form.name.trim()) {
+                setNameError("Exam name is required");
+                return;
+              }
+              onSave({ ...form, name: form.name.trim() });
+            }}
+            className="btn-primary w-full sm:w-auto min-h-[40px] cursor-pointer"
+          >
+            <Save size={15} /> {exam ? "Update Exam" : "Save Exam"}
+          </button>
+        </div>
       </div>
     </Modal>
   );
 }
 
 export default function Marks() {
-  const { students, addToast, exams = [], saveExams } = useApp();
+  const { students, addToast, exams = [], saveExams, deleteExam, clearAllExams, refreshStudents } = useApp();
   const { role } = useAuth();
   const canEdit = role === "admin" || role === "teacher";
   const [examModal, setExamModal] = useState({ open: false, exam: null });
@@ -102,13 +130,51 @@ export default function Marks() {
   const [filterClass, setFilterClass] = useState("all");
   const [viewExam, setViewExam] = useState(null);
   const [viewSearch, setViewSearch] = useState("");
-  const availableClasses = useMemo(() => Array.from(new Set(students.map(s => s.class))).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [students]);
+
+  // Auto-fetch students if empty on mount without requiring page reload
+  useEffect(() => {
+    if (students.length === 0 && refreshStudents) {
+      refreshStudents();
+    }
+  }, [students.length, refreshStudents]);
+
+  const availableClasses = useMemo(() => Array.from(new Set(students.map(s => String(s.class || '').trim()))).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [students]);
   const filteredExams = useMemo(() => exams.filter(e => { const ms = !search || e.name.toLowerCase().includes(search.toLowerCase()) || e.subject.toLowerCase().includes(search.toLowerCase()); const msu = filterSubject === "all" || e.subject === filterSubject; const mt = filterExamType === "all" || e.examType === filterExamType; const mc = filterClass === "all" || e.classFilter === filterClass || e.classFilter === "all"; return ms && msu && mt && mc; }).sort((a, b) => new Date(b.date) - new Date(a.date)), [exams, search, filterSubject, filterExamType, filterClass]);
-  const handleSaveExam = (form) => { if (examModal.exam) { const u = exams.map(e => e.id === examModal.exam.id ? { ...e, ...form } : e); saveExams(u); if (viewExam?.id === examModal.exam.id) setViewExam({ ...examModal.exam, ...form }); addToast("Exam marks updated.", "success"); } else { const ne = { ...form, id: `EXAM${Date.now()}`, createdAt: new Date().toISOString() }; saveExams([ne, ...exams]); addToast("Exam added.", "success"); } setExamModal({ open: false, exam: null }); };
-  const handleDelete = (exam) => { saveExams(exams.filter(e => e.id !== exam.id)); addToast(`"${exam.name}" deleted.`, "info"); setDeleteTarget(null); if (viewExam?.id === exam.id) setViewExam(null); };
-  const handleClearAll = () => { saveExams([]); addToast("All exam records deleted successfully.", "info"); setClearAllOpen(false); if (viewExam) setViewExam(null); };
+  const handleSaveExam = (form) => {
+    if (examModal.exam) {
+      const u = exams.map(e => e.id === examModal.exam.id ? { ...e, ...form } : e);
+      saveExams(u);
+      if (viewExam?.id === examModal.exam.id) setViewExam({ ...examModal.exam, ...form });
+      addToast("Exam marks updated.", "success");
+    } else {
+      const ne = { ...form, id: `EXAM_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, createdAt: new Date().toISOString() };
+      saveExams([ne, ...exams]);
+      addToast("Exam added.", "success");
+    }
+    setExamModal({ open: false, exam: null });
+  };
+  const handleDelete = (exam) => {
+    if (deleteExam) {
+      deleteExam(exam.id || exam._docId);
+    } else {
+      saveExams(exams.filter(e => e.id !== exam.id));
+    }
+    addToast(`"${exam.name}" deleted.`, "info");
+    setDeleteTarget(null);
+    if (viewExam?.id === exam.id) setViewExam(null);
+  };
+  const handleClearAll = () => {
+    if (clearAllExams) {
+      clearAllExams();
+    } else {
+      saveExams([]);
+    }
+    addToast("All exam records deleted successfully.", "info");
+    setClearAllOpen(false);
+    if (viewExam) setViewExam(null);
+  };
   const examStats = (exam) => { const arr = Object.values(exam.marks || {}).filter(m => m !== "" && m !== undefined && !isNaN(m)).map(Number); if (!arr.length) return { avg: 0, highest: 0, lowest: 0, passRate: 0, appeared: 0 }; const avg = Math.round(arr.reduce((a, b) => a + b, 0) / arr.length); const thr = exam.maxMarks * 0.33; return { avg, highest: Math.max(...arr), lowest: Math.min(...arr), passRate: Math.round((arr.filter(m => m >= thr).length / arr.length) * 100), appeared: arr.length }; };
-  const viewStudents = useMemo(() => !viewExam ? [] : students.filter(s => { const hm = viewExam.marks?.[s.id] !== undefined && viewExam.marks?.[s.id] !== ""; const mc = viewExam.classFilter === "all" || s.class === viewExam.classFilter; const ms = viewExam.sectionFilter === "all" || s.section === viewExam.sectionFilter; const mq = !viewSearch || s.name.toLowerCase().includes(viewSearch.toLowerCase()) || String(s.rollNumber).includes(viewSearch); return hm && mc && ms && mq; }).sort((a, b) => Number(viewExam.marks[b.id] ?? -1) - Number(viewExam.marks[a.id] ?? -1)), [viewExam, students, viewSearch]);
+  const viewStudents = useMemo(() => !viewExam ? [] : students.filter(s => { const hm = viewExam.marks?.[s.id] !== undefined && viewExam.marks?.[s.id] !== ""; const mc = viewExam.classFilter === "all" || String(s.class || '').trim() === String(viewExam.classFilter || '').trim(); const ms = viewExam.sectionFilter === "all" || String(s.section || '').trim().toUpperCase() === String(viewExam.sectionFilter || '').trim().toUpperCase(); const mq = !viewSearch || s.name.toLowerCase().includes(viewSearch.toLowerCase()) || String(s.rollNumber).includes(viewSearch); return hm && mc && ms && mq; }).sort((a, b) => Number(viewExam.marks[b.id] ?? -1) - Number(viewExam.marks[a.id] ?? -1)), [viewExam, students, viewSearch]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-5 animate-fade-in">
@@ -118,9 +184,6 @@ export default function Marks() {
             <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <BookOpen size={22} className="text-blue-400 shrink-0" /> Marks
             </h1>
-            <span className="inline-flex items-center gap-1 text-[11px] text-amber-500 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 font-medium">
-              <Clock size={11} /> Auto-deleted after 7 days
-            </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{exams.length} exam{exams.length !== 1 ? "s" : ""} recorded</p>
         </div>
@@ -359,15 +422,6 @@ export default function Marks() {
                               <span className="text-xs text-slate-600 dark:text-slate-300">
                                 {exam.date ? new Date(exam.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                               </span>
-                              {(() => {
-                                const rem = getExamDaysRemaining(exam);
-                                if (rem === null) return null;
-                                return (
-                                  <span className="block text-[10px] text-amber-500/90 font-medium">
-                                    {rem === 0 ? "Expires today" : `${rem}d left`}
-                                  </span>
-                                );
-                              })()}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-center"><div className="flex items-center justify-center gap-1"><Users size={12} className="text-slate-400" /><span className="text-xs font-semibold text-slate-900 dark:text-white">{s.appeared}</span></div></td>
@@ -431,15 +485,6 @@ export default function Marks() {
                             {new Date(exam.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                           </span>
                         )}
-                        {(() => {
-                          const rem = getExamDaysRemaining(exam);
-                          if (rem === null) return null;
-                          return (
-                            <span className="text-amber-500/90 text-[10px] font-medium bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-                              {rem === 0 ? "Expires today" : `${rem}d left`}
-                            </span>
-                          );
-                        })()}
                       </div>
 
                       <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-white/[0.04]" onClick={e => e.stopPropagation()}>

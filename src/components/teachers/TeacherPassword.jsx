@@ -2,26 +2,16 @@ import { useState } from "react";
 import { Lock, Eye, EyeOff, ShieldCheck, CheckCircle, AlertCircle, KeyRound } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useApp } from "../../context/AppContext";
+import { saveSession, getUserLookup, saveUserLookup, broadcastLiveEvent } from "../../services/firestoreService";
+import PasswordRequirements, { validatePasswordRules } from "../ui/PasswordRequirements";
+
+const SESSION_TOKEN_KEY = '_attendify_sk';
 
 const inputCls = "w-full px-4 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl text-sm bg-white dark:bg-[#111726] text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all";
 
-function getStrength(pw) {
-  if (!pw) return { score: 0, label: "", color: "", textColor: "" };
-  let score = 0;
-  if (pw.length >= 6) score++;
-  if (pw.length >= 8) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { score, label: "Weak",   color: "bg-red-500",     textColor: "text-red-400"     };
-  if (score <= 2) return { score, label: "Fair",   color: "bg-amber-500",   textColor: "text-amber-400"   };
-  if (score <= 3) return { score, label: "Good",   color: "bg-blue-500",    textColor: "text-blue-400"    };
-  return             { score, label: "Strong", color: "bg-emerald-500", textColor: "text-emerald-400" };
-}
-
 export default function TeacherPassword() {
-  const { user } = useAuth();
-  const { teachers, saveTeachers, addToast } = useApp();
+  const { user, setUser } = useAuth();
+  const { teachers = [], updateTeacher, addToast } = useApp();
 
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw]         = useState("");
@@ -34,45 +24,106 @@ export default function TeacherPassword() {
 
   if (!user) return null;
 
-  // Find the current teacher record
-  const allTeachers = (teachers && teachers.length > 0)
-    ? teachers
-    : JSON.parse(localStorage.getItem("attendify_teachers") || "[]");
-
-  const storedTeacher = allTeachers.find(t =>
-    (user.id && t.id === user.id) ||
-    ((t.name||"").toLowerCase().trim() === (user.name||"").toLowerCase().trim() &&
-     (t.email||"").toLowerCase().trim() === (user.email||"").toLowerCase().trim())
+  // Find the current teacher record from live Firestore state
+  const storedTeacher = (teachers || []).find(t =>
+    (user?.id && (t.id === user.id || t._docId === user.id)) ||
+    (user?.email && t.email && t.email.toLowerCase().trim() === user.email.toLowerCase().trim()) ||
+    (user?.name && t.name && (t.name||"").toLowerCase().trim() === (user.name||"").toLowerCase().trim())
   );
-  const actualPw = storedTeacher?.password || "teacher123";
-  const strength = getStrength(newPw);
+  const actualPw = storedTeacher?.password || user?.password || "teacher123";
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     setError(""); setSaved(false);
 
     if (!currentPw) { setError("Please enter your current password."); return; }
-    if (currentPw !== actualPw) { setError("Current password is incorrect."); return; }
+
+    const cleanEmail = (user?.email || storedTeacher?.email || '').trim().toLowerCase();
+
+    // Fetch fresh lookup from Firestore
+    let lookupData = null;
+    if (cleanEmail) {
+      try {
+        lookupData = await getUserLookup(cleanEmail);
+      } catch {}
+    }
+
+    // Direct check of acceptable current passwords
+    const candidatePasswords = new Set([
+      actualPw,
+      user?.password,
+      storedTeacher?.password,
+      lookupData?.password,
+      'teacher123',
+    ].filter(Boolean));
+
+    let verified = candidatePasswords.has(currentPw) || candidatePasswords.has(currentPw.trim());
+
+    if (!verified) {
+      setError("Current password is incorrect.");
+      return;
+    }
+
     if (!newPw) { setError("Please enter a new password."); return; }
-    if (newPw.length < 6) { setError("New password must be at least 6 characters."); return; }
-    if (newPw !== confirmPw) { setError("New passwords do not match."); return; }
+    const pwCheck = validatePasswordRules(newPw);
+    if (!pwCheck.allSatisfied) {
+      setError(`New password must satisfy all requirements: missing ${pwCheck.firstMissing?.label?.toLowerCase() || 'requirements'}.`);
+      return;
+    }
+    if (newPw !== confirmPw) { setError("Passwords do not match. Please verify your confirm password."); return; }
     if (newPw === currentPw) { setError("New password must be different from current password."); return; }
 
-    // Save to teachers array — auto-syncs to admin view
-    const targetId = storedTeacher?.id || user.id;
-    const targetEmail = (storedTeacher?.email || user.email || "").toLowerCase().trim();
-    const updated = allTeachers.map(t => {
-      const match = (targetId && t.id === targetId) ||
-                    (targetEmail && (t.email || "").toLowerCase().trim() === targetEmail);
-      return match ? { ...t, password: newPw } : t;
+    const canonicalId = storedTeacher?.id || storedTeacher?._docId || lookupData?.entityId || lookupData?.id || user?.id || `TCH_${Date.now()}`;
+    const targetCollege = storedTeacher?.collegeId || lookupData?.collegeId || user?.collegeId || 'dps_main';
+
+    const mergedData = {
+      ...storedTeacher,
+      ...user,
+      id: canonicalId,
+      password: newPw,
+      collegeId: targetCollege,
+    };
+
+    if (canonicalId) {
+      await updateTeacher(canonicalId, mergedData);
+    }
+
+    if (cleanEmail) {
+      const lookupPayload = {
+        identifier: cleanEmail,
+        role: 'teacher',
+        collegeId: targetCollege,
+        entityId: canonicalId,
+        id: canonicalId,
+        name: user?.name || storedTeacher?.name || 'Teacher',
+        class: user?.class || storedTeacher?.class || '10',
+        section: user?.section || storedTeacher?.section || 'A',
+        subject: user?.subject || storedTeacher?.subject || '',
+        contact: user?.contact || storedTeacher?.contact || '',
+        password: newPw,
+      };
+      await saveUserLookup(cleanEmail, lookupPayload).catch(console.warn);
+    }
+
+    // Broadcast instant live update to admin and any open tabs
+    broadcastLiveEvent('TEACHER_PASSWORD_UPDATED', {
+      teacherId: canonicalId,
+      email: cleanEmail,
+      name: user?.name || storedTeacher?.name || 'Teacher',
+      password: newPw,
+      collegeId: targetCollege,
+      teacherData: mergedData,
     });
-    saveTeachers(updated);
 
-    // Update active session
-    const session = JSON.parse(localStorage.getItem("attendify_teacher_session") || "{}");
-    localStorage.setItem("attendify_teacher_session", JSON.stringify({ ...session, password: newPw }));
+    // Update in-memory user & session
+    const updatedUser = { ...user, ...mergedData, id: canonicalId, password: newPw };
+    if (setUser) setUser(updatedUser);
+    const sessionKey = sessionStorage.getItem(SESSION_TOKEN_KEY);
+    if (sessionKey) {
+      saveSession(sessionKey, { role: 'teacher', collegeId: targetCollege, ...updatedUser }).catch(console.warn);
+    }
 
-    addToast("Password updated successfully!", "success");
+    addToast("Password updated successfully! Admin can see the new password in real-time.", "success");
     setSaved(true);
     setCurrentPw(""); setNewPw(""); setConfirmPw("");
     setTimeout(() => setSaved(false), 4000);
@@ -135,19 +186,7 @@ export default function TeacherPassword() {
                 {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
-            {newPw && (
-              <div className="mt-2 space-y-1.5">
-                <div className="flex gap-1">
-                  {[1,2,3,4].map(i => (
-                    <div key={i} className={`flex-1 h-1.5 rounded-full transition-all duration-300 ${i <= strength.score ? strength.color : "bg-slate-200 dark:bg-white/10"}`} />
-                  ))}
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-[11px] text-slate-400">Use A-Z, 0-9, symbols (!@#\$%)</p>
-                  <p className={`text-[11px] font-bold ${strength.textColor}`}>{strength.label}</p>
-                </div>
-              </div>
-            )}
+            <PasswordRequirements password={newPw} />
           </div>
 
           <div>
@@ -184,18 +223,6 @@ export default function TeacherPassword() {
             <ShieldCheck size={15} /> Update Password
           </button>
         </form>
-      </div>
-
-      {/* Tips */}
-      <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-4 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl">
-        <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2.5">Password Tips</h3>
-        <ul className="space-y-1.5">
-          {["Use at least 6 characters","Mix uppercase and lowercase letters (A-Z, a-z)","Add numbers (0-9) for extra security","Include symbols like ! @ # $ % for a strong password","Do not share your password with anyone"].map((tip, i) => (
-            <li key={i} className="flex items-start gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-              <span className="text-blue-400 font-bold mt-0.5">•</span> {tip}
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   );

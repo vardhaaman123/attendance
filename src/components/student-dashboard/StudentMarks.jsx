@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { BookOpen, Award, TrendingUp, BarChart3, Check, AlertCircle, Clock } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useApp } from "../../context/AppContext";
-import { getExamDaysRemaining, filterValidExams } from "../../utils/marksUtils";
+import { filterValidExams } from "../../utils/marksUtils";
 
 function getGrade(pct) {
   if (pct >= 90) return { grade: "A+", color: "text-emerald-400", bg: "bg-emerald-500/15 border-emerald-500/30" };
@@ -19,26 +19,38 @@ export default function StudentMarks() {
   const { exams: contextExams } = useApp();
 
   const allExams = useMemo(() => {
-    if (contextExams && Array.isArray(contextExams)) {
-      return filterValidExams(contextExams);
-    }
-    try {
-      const stored = JSON.parse(localStorage.getItem("attendify_marks") || "[]");
-      return filterValidExams(stored);
-    } catch {
-      return [];
-    }
+    // Always read from AppContext (loaded from Firestore via real-time listener)
+    return filterValidExams(Array.isArray(contextExams) ? contextExams : []);
   }, [contextExams]);
 
   const myExams = useMemo(() => {
     if (!currentStudent) return [];
+    const studentKeys = [
+      currentStudent.id,
+      currentStudent.entityId,
+      currentStudent._docId,
+      currentStudent.rollNumber,
+      currentStudent.rollNumber ? String(currentStudent.rollNumber).trim() : null,
+      currentStudent.rollNumber ? String(currentStudent.rollNumber).trim().replace(/^0+/, '') : null,
+    ].filter(Boolean);
+
     return allExams
-      .filter(e => e.marks?.[currentStudent.id] !== undefined && e.marks?.[currentStudent.id] !== "")
-      .map(e => ({
-        ...e,
-        myMark: Number(e.marks[currentStudent.id]),
-        pct: Math.round((Number(e.marks[currentStudent.id]) / e.maxMarks) * 100),
-      }))
+      .map((e) => {
+        let markVal;
+        for (const k of studentKeys) {
+          if (e.marks?.[k] !== undefined && e.marks?.[k] !== '') {
+            markVal = e.marks[k];
+            break;
+          }
+        }
+        if (markVal === undefined) return null;
+        return {
+          ...e,
+          myMark: Number(markVal),
+          pct: Math.round((Number(markVal) / e.maxMarks) * 100),
+        };
+      })
+      .filter(Boolean)
       .sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [allExams, currentStudent]);
 
@@ -152,15 +164,6 @@ export default function StudentMarks() {
                             <span className="text-xs text-slate-400">
                               {exam.date ? new Date(exam.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                             </span>
-                            {(() => {
-                              const rem = getExamDaysRemaining(exam);
-                              if (rem === null) return null;
-                              return (
-                                <span className="block text-[10px] text-amber-400/90 font-medium">
-                                  {rem === 0 ? "Expires today" : `${rem}d left`}
-                                </span>
-                              );
-                            })()}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center">
@@ -202,15 +205,6 @@ export default function StudentMarks() {
                         <p className="text-sm font-bold text-white leading-tight break-words">{exam.name}</p>
                         <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                           <p className="text-[11px] text-slate-400">{exam.subject} • {exam.examType}</p>
-                          {(() => {
-                            const rem = getExamDaysRemaining(exam);
-                            if (rem === null) return null;
-                            return (
-                              <span className="text-[10px] text-amber-400/90 font-medium bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
-                                {rem === 0 ? "Expires today" : `${rem}d left`}
-                              </span>
-                            );
-                          })()}
                         </div>
                       </div>
                       <span className={`text-xs font-bold px-2 py-0.5 rounded border flex-shrink-0 ${bg} ${color}`}>{grade}</span>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Phone, User, Mail, BookOpen, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Phone, User, Mail, BookOpen, Calendar, ChevronLeft, ChevronRight, Key, Eye, EyeOff, Copy, Check } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useApp } from '../../context/AppContext';
 import { calcStudentAttendancePercentage, getStudentMonthlyCalendar } from '../../utils/attendanceCalc';
@@ -79,19 +79,38 @@ function MonthCalendar({ days, year, month }) {
 }
 
 export default function StudentProfileModal({ open, student, onClose }) {
-  const { attendanceRecords } = useApp();
+  const { attendanceRecords, students } = useApp();
+  const [showPassword, setShowPassword] = useState(false);
+  const [copiedPw, setCopiedPw] = useState(false);
   const now = new Date();
   const [calMonth, setCalMonth] = useState(now.getMonth());
   const [calYear, setCalYear] = useState(now.getFullYear());
 
+  const liveStudent = (students || []).find((s) => {
+    if (!student) return false;
+    const sId = s.id || s._docId;
+    if (student.id && (sId === student.id || s._docId === student.id)) return true;
+    if (student.rollNumber && s.rollNumber && String(s.rollNumber).trim().toLowerCase() === String(student.rollNumber).trim().toLowerCase()) return true;
+    if (student.email && s.email && s.email.trim().toLowerCase() === student.email.trim().toLowerCase()) return true;
+    return false;
+  }) || student;
+
+  const currentPassword = liveStudent?.password || '1234';
+
+  const handleCopyPassword = () => {
+    navigator.clipboard.writeText(currentPassword);
+    setCopiedPw(true);
+    setTimeout(() => setCopiedPw(false), 2000);
+  };
+
   const stats = useMemo(() =>
-    student ? calcStudentAttendancePercentage(student.id, attendanceRecords) : {},
-    [student, attendanceRecords]
+    liveStudent ? calcStudentAttendancePercentage(liveStudent.id, attendanceRecords) : {},
+    [liveStudent, attendanceRecords]
   );
 
   const calDays = useMemo(() =>
-    student ? getStudentMonthlyCalendar(student.id, attendanceRecords, calYear, calMonth) : {},
-    [student, attendanceRecords, calYear, calMonth]
+    liveStudent ? getStudentMonthlyCalendar(liveStudent.id, attendanceRecords, calYear, calMonth) : {},
+    [liveStudent, attendanceRecords, calYear, calMonth]
   );
 
   const pct = stats.percentage || 0;
@@ -113,8 +132,8 @@ export default function StudentProfileModal({ open, student, onClose }) {
 
   if (!student) return null;
 
-  const avatarHue = (student.rollNumber?.charCodeAt(0) || 65) * 47 % 360;
-  const initials = student.name.split(' ').map(n => n[0]).join('').slice(0, 2);
+  const avatarHue = (liveStudent.rollNumber?.charCodeAt(0) || 65) * 47 % 360;
+  const initials = (liveStudent.name || 'S').split(' ').map(n => n[0]).join('').slice(0, 2);
 
   return (
     <Modal open={open} onClose={onClose} title="Student Profile" maxWidth="max-w-xl">
@@ -128,9 +147,9 @@ export default function StudentProfileModal({ open, student, onClose }) {
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">{student.name}</h3>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white truncate">{liveStudent.name}</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Roll #{student.rollNumber} · Class {student.class}-{student.section}
+              Roll #{liveStudent.rollNumber} · Class {liveStudent.class}-{liveStudent.section}
             </p>
           </div>
           <div className="relative inline-flex items-center justify-center flex-shrink-0">
@@ -161,13 +180,52 @@ export default function StudentProfileModal({ open, student, onClose }) {
           ))}
         </div>
 
+        {/* Real-time Login Password Card */}
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+              <Key size={15} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] uppercase font-bold text-emerald-500 dark:text-emerald-400 tracking-wider">Login Password</span>
+                <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded-full border border-emerald-500/20">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                  Live Synced
+                </span>
+              </div>
+              <p className="text-sm font-mono font-bold text-slate-900 dark:text-white tracking-wider mt-0.5">
+                {showPassword ? currentPassword : '••••••••'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer"
+              title={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyPassword}
+              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-emerald-500 transition-colors cursor-pointer"
+              title="Copy password"
+            >
+              {copiedPw ? <Check size={15} className="text-emerald-400" /> : <Copy size={15} />}
+            </button>
+          </div>
+        </div>
+
         {/* Info */}
         <div className="space-y-2.5">
           {[
-            [User, 'Parent / Guardian', student.parentName],
-            [Phone, 'Contact', student.contact],
-            [Mail, 'Email', student.email],
-            [BookOpen, 'Class', `${student.class}-${student.section}`],
+            [User, 'Parent / Guardian', liveStudent.parentName],
+            [Phone, 'Contact', liveStudent.contact],
+            [Mail, 'Email', liveStudent.email],
+            [BookOpen, 'Class', `${liveStudent.class}-${liveStudent.section}`],
           ].map(([Icon, label, val]) => (
             <div key={label} className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-white/10 flex items-center justify-center flex-shrink-0">

@@ -30,7 +30,7 @@
   }
 
   body {
-    @apply font-sans bg-slate-50 text-slate-900 antialiased;
+    @apply font-sans bg-[#070A12] text-slate-100 antialiased;
   }
 
   img, video {
@@ -166,7 +166,8 @@
     @apply w-full px-4 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl text-sm
            bg-white dark:bg-[#111726] text-slate-900 dark:text-white
            placeholder:text-slate-400 dark:placeholder:text-slate-500
-           focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all;
+           focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500
+           dark:focus:border-blue-500 dark:focus:ring-blue-500/30 transition-all;
   }
 
   .badge-present {
@@ -233,6 +234,20 @@
   .print-only { display: block !important; }
   body { background: white !important; color: black !important; }
   .card { box-shadow: none !important; border: 1px solid #ccc !important; }
+
+  /* Ensure printable-slip is fully visible and not clipped */
+  #printable-slip {
+    border: 2px solid #059669 !important;
+    background: white !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    max-width: 480px !important;
+    margin: 0 auto !important;
+    page-break-inside: avoid !important;
+  }
+  #printable-slip * {
+    color: #0f172a !important;
+  }
 }
 
 .print-only { display: none; }

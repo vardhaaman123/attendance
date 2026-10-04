@@ -24,10 +24,11 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { getIndianHoliday } from '../../utils/indianHolidays';
+import { getUserIdentities, isMessageTargetingMe, isMessageUnreadForUser } from '../../utils/messageUtils';
 
 export default function StudentDashboard() {
   const { currentStudent } = useAuth();
-  const { attendanceRecords, settings, messages, addToast } = useApp();
+  const { attendanceRecords, settings, messages, students, teachers, addToast } = useApp();
   const navigate = useNavigate();
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -47,8 +48,27 @@ export default function StudentDashboard() {
     const dayMap = {};
     const recordsList = Object.values(attendanceRecords).sort((a, b) => new Date(a.date) - new Date(b.date));
 
+    const getStatusForStudent = (rec) => {
+      if (!rec?.attendance || !currentStudent) return null;
+      const att = rec.attendance;
+      const keys = [
+        currentStudent.id,
+        currentStudent.entityId,
+        currentStudent._docId,
+        currentStudent.rollNumber,
+        currentStudent.rollNumber ? String(currentStudent.rollNumber).trim() : null,
+        currentStudent.rollNumber ? String(currentStudent.rollNumber).trim().replace(/^0+/, '') : null,
+      ].filter(Boolean);
+      for (const k of keys) {
+        if (att[k] !== undefined && att[k] !== null && att[k] !== '') {
+          return att[k];
+        }
+      }
+      return null;
+    };
+
     recordsList.forEach((record) => {
-      const status = record.attendance?.[currentStudent?.id];
+      const status = getStatusForStudent(record);
       if (!status) return;
       dayMap[record.date] = {
         status,
@@ -68,7 +88,7 @@ export default function StudentDashboard() {
     let currentStreak = 0;
     for (let i = recordsList.length - 1; i >= 0; i--) {
       const rec = recordsList[i];
-      const st = rec.attendance?.[currentStudent?.id];
+      const st = getStatusForStudent(rec);
       if (!st) continue;
       if (st === 'present' || st === 'late') {
         currentStreak++;
@@ -165,13 +185,38 @@ export default function StudentDashboard() {
     });
   }, [stats.percentage, stats.total]);
 
-  // Recent announcements preview for students
+  const identities = useMemo(() => {
+    return getUserIdentities({
+      role: 'student',
+      user: currentStudent,
+      currentStudent,
+      students,
+      teachers,
+    });
+  }, [currentStudent, students, teachers]);
+
+  // Recent announcements & teacher messages for students
+  // Teacher messages prioritized at the top, then unseen messages, then newest
   const studentNotices = useMemo(() => {
-    return (messages || [])
-      .filter((m) => m.targetId === 'all' || m.targetRole === 'student' || m.targetRole === 'all')
-      .slice(-3)
-      .reverse();
-  }, [messages]);
+    const list = (messages || [])
+      .filter((m) => isMessageTargetingMe(m, identities, students))
+      .map((m) => ({
+        ...m,
+        isUnread: isMessageUnreadForUser(m, identities, students),
+      }));
+
+    return list.sort((a, b) => {
+      const aIsTeacher = (a.senderRole || '').toLowerCase() === 'teacher';
+      const bIsTeacher = (b.senderRole || '').toLowerCase() === 'teacher';
+      if (aIsTeacher && !bIsTeacher) return -1;
+      if (!aIsTeacher && bIsTeacher) return 1;
+
+      if (a.isUnread && !b.isUnread) return -1;
+      if (!a.isUnread && b.isUnread) return 1;
+
+      return new Date(b.timestamp || 0) - new Date(a.timestamp || 0);
+    }).slice(0, 5);
+  }, [messages, identities, students]);
 
   const pctColor =
     stats.percentage >= 85
@@ -558,16 +603,42 @@ export default function StudentDashboard() {
                   <div
                     key={msg.id}
                     onClick={() => navigate('/messages')}
-                    className="p-3 rounded-xl bg-[#111726]/80 hover:bg-[#161F34] border border-white/[0.06] transition-all cursor-pointer group"
+                    className={`p-3 rounded-xl border transition-all cursor-pointer group ${
+                      msg.isUnread
+                        ? 'bg-[#111c33]/90 hover:bg-[#162444] border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.06)]'
+                        : 'bg-[#111726]/80 hover:bg-[#161F34] border-white/[0.06]'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-semibold text-blue-400">{msg.senderName || 'School'}</span>
-                      <span className="text-[10px] text-slate-500">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {msg.isUnread && (
+                          <span
+                            className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)] animate-pulse flex-shrink-0"
+                            title="New unseen message"
+                          />
+                        )}
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full truncate ${
+                            (msg.senderRole || '').toLowerCase() === 'teacher'
+                              ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25'
+                              : (msg.senderRole || '').toLowerCase() === 'admin'
+                              ? 'bg-purple-500/15 text-purple-400 border border-purple-500/25'
+                              : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+                          }`}
+                        >
+                          {(msg.senderRole || '').toLowerCase() === 'teacher'
+                            ? `👨‍🏫 ${msg.senderName || 'Teacher'}`
+                            : (msg.senderRole || '').toLowerCase() === 'admin'
+                            ? `🛡️ ${msg.senderName || 'Principal'}`
+                            : msg.senderName || 'School Announcement'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 flex-shrink-0">
+                        {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
                     </div>
                     <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed group-hover:text-white">
-                      {msg.text}
+                      {msg.text || (msg.attachment ? `[Attachment: ${msg.attachment.name || 'File'}]` : '')}
                     </p>
                   </div>
                 ))

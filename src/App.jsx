@@ -34,7 +34,12 @@ import TeacherPassword from './components/teachers/TeacherPassword';
 
 
 function SeedInitializer({ children }) {
-  useEffect(() => { initializeSeedData(); }, []);
+  useEffect(() => {
+    // initializeSeedData is async — it uploads seed data to Firestore if empty
+    initializeSeedData().catch((err) =>
+      console.error('[SeedInitializer] Failed to seed Firestore:', err)
+    );
+  }, []);
   return children;
 }
 
@@ -62,6 +67,14 @@ function AdminRoute({ children }) {
   const { role, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (role !== 'admin') return <Navigate to="/dashboard" replace />;
+  return children;
+}
+
+// Staff-only (admin or teacher): students are redirected to their dashboard
+function StaffRoute({ children }) {
+  const { role, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (role === 'student') return <Navigate to="/student-dashboard" replace />;
   return children;
 }
 
@@ -102,20 +115,20 @@ export default function App() {
                   <Route path="my-password"       element={<StudentPassword />} />
 
 
-                  {/* Teacher + Admin pages */}
-                  <Route path="dashboard"  element={<Dashboard />} />
-                  <Route path="attendance" element={<TakeAttendance />} />
-                  <Route path="history"           element={<AttendanceHistory />} />
-                  <Route path="reports"           element={<Reports />} />
-                  <Route path="marks"             element={<Marks />} />
+                  {/* Shared pages accessible to all authenticated users (Student, Teacher, Admin) */}
                   <Route path="messages"          element={<Messages />} />
-                  <Route path="teacher-password"  element={<TeacherPassword />} />
 
-
+                  {/* Teacher + Admin pages (blocked for students) */}
+                  <Route path="dashboard"  element={<StaffRoute><Dashboard /></StaffRoute>} />
+                  <Route path="attendance" element={<StaffRoute><TakeAttendance /></StaffRoute>} />
+                  <Route path="students"   element={<StaffRoute><StudentList /></StaffRoute>} />
+                  <Route path="history"           element={<StaffRoute><AttendanceHistory /></StaffRoute>} />
+                  <Route path="reports"           element={<StaffRoute><Reports /></StaffRoute>} />
+                  <Route path="marks"             element={<StaffRoute><Marks /></StaffRoute>} />
+                  <Route path="teacher-password"  element={<StaffRoute><TeacherPassword /></StaffRoute>} />
 
                   {/* Admin-only */}
                   <Route path="teachers" element={<AdminRoute><TeacherList /></AdminRoute>} />
-                  <Route path="students" element={<AdminRoute><StudentList /></AdminRoute>} />
                   <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
                 </Route>
 

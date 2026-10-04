@@ -19,9 +19,12 @@ export const sendAbsenceAlerts = async (absentStudents, date, settings, addToast
   for (let i = 0; i < absentStudents.length; i++) {
     const student = absentStudents[i];
 
+    // Use parent's email — not the student's login email
+    const toEmail = student.parentEmail || student.email;
+
     // ── Send individual Email via EmailJS ──
     if (
-      student.email &&
+      toEmail &&
       settings.emailjsServiceId &&
       settings.emailjsTemplateId &&
       settings.emailjsPublicKey
@@ -34,13 +37,13 @@ export const sendAbsenceAlerts = async (absentStudents, date, settings, addToast
             parent_name:  student.parentName || 'Parent/Guardian',
             student_name: student.name,
             date:         dateStr,
-            school_name:  settings.schoolName || 'School',
-            parent_email: student.email,   // sends to THIS student's parent email
+            school_name:  settings.schoolName || settings.collegeName || 'School',
+            parent_email: toEmail,
           },
           settings.emailjsPublicKey
         );
         emailsSent++;
-        console.log(`✅ Email sent for ${student.name} to ${student.email}`);
+        console.log(`✅ Email sent for ${student.name} to ${toEmail}`);
 
         // Wait 600ms between each email to avoid EmailJS rate limiting
         if (i < absentStudents.length - 1) {

@@ -11,7 +11,7 @@ export default function StudentProfile() {
   const fields = [
     { icon: Hash,       label: 'Roll Number',       value: currentStudent.rollNumber || '01' },
     { icon: BookOpen,   label: 'Class & Section',   value: `Class ${currentStudent.class} - Section ${currentStudent.section}` },
-    { icon: Users,      label: 'School',            value: settings.schoolName || 'Delhi Public School' },
+    { icon: Users,      label: 'Institution',       value: settings.collegeName || settings.schoolName || 'Institution' },
     { icon: UserCircle, label: 'Parent / Guardian', value: currentStudent.parentName || '—' },
     { icon: Phone,      label: "Parent's Contact",  value: currentStudent.contact || '—' },
     { icon: Mail,       label: "Parent's Email",    value: currentStudent.email || '—' },

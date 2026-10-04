@@ -159,6 +159,7 @@ export default function TakeAttendance() {
     setSelectedSection,
     addToast,
     settings,
+    refreshStudents,
   } = useApp();
   const { role, user } = useAuth();
   const isTeacher = role === 'teacher';
@@ -166,7 +167,7 @@ export default function TakeAttendance() {
   const teacherAssignedSection = user?.section ? String(user.section).toUpperCase() : '';
 
   const displayName = role === 'admin' 
-    ? (settings?.teacherName || user?.name || 'Administrator') 
+    ? (user?.name || 'Administrator') 
     : (user?.name || 'Teacher');
 
   const activeClass = selectedClass;
@@ -179,14 +180,28 @@ export default function TakeAttendance() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Auto-fetch students immediately if list is empty without requiring manual page refresh
+  useEffect(() => {
+    if (students.length === 0 && refreshStudents) {
+      refreshStudents();
+    }
+  }, [students.length, refreshStudents]);
+
   const recordKey = `${date}_${activeClass}_${activeSection}`;
   const existingRecord = attendanceRecords[recordKey];
 
+  const isMatch = (s, cls, sec) =>
+    String(s.class || '').trim() === String(cls || '').trim() &&
+    String(s.section || '').trim().toUpperCase() === String(sec || '').trim().toUpperCase();
+
   const [attendance, setAttendance] = useState(() => {
     if (existingRecord) return { ...existingRecord.attendance };
-    const classStudents = students.filter(s => s.class === activeClass && s.section === activeSection);
+    const classStudents = students.filter(s => isMatch(s, activeClass, activeSection));
     const init = {};
-    classStudents.forEach(s => { init[s.id] = 'present'; });
+    classStudents.forEach(s => {
+      const id = s.id || s._docId;
+      if (id) init[id] = 'present';
+    });
     return init;
   });
 
@@ -194,16 +209,46 @@ export default function TakeAttendance() {
   const resetToRecord = useCallback((cls, sec, dt) => {
     const key = `${dt}_${cls}_${sec}`;
     const rec = attendanceRecords[key];
-    const classStudents = students.filter(s => s.class === cls && s.section === sec);
-    if (rec) {
+    const classStudents = students.filter(s => isMatch(s, cls, sec));
+    if (rec && rec.attendance) {
       setAttendance({ ...rec.attendance });
     } else {
       const init = {};
-      classStudents.forEach(s => { init[s.id] = 'present'; });
+      classStudents.forEach(s => {
+        const id = s.id || s._docId;
+        if (id) init[id] = 'present';
+      });
       setAttendance(init);
     }
     setSaved(false);
   }, [attendanceRecords, students]);
+
+  // Keep attendance state synchronized whenever classStudents load or update
+  useEffect(() => {
+    const classStudentsList = students.filter(s => isMatch(s, activeClass, activeSection));
+    if (classStudentsList.length > 0) {
+      const key = `${date}_${activeClass}_${activeSection}`;
+      const rec = attendanceRecords[key];
+      if (rec && rec.attendance) {
+        setAttendance({ ...rec.attendance });
+      } else {
+        setAttendance((prev) => {
+          const hasKeys = Object.keys(prev).length > 0;
+          const allExist = classStudentsList.every((s) => {
+            const id = s.id || s._docId;
+            return id && prev[id] !== undefined;
+          });
+          if (hasKeys && allExist) return prev;
+          const updated = { ...prev };
+          classStudentsList.forEach((s) => {
+            const id = s.id || s._docId;
+            if (id && updated[id] === undefined) updated[id] = 'present';
+          });
+          return updated;
+        });
+      }
+    }
+  }, [students, date, activeClass, activeSection, attendanceRecords]);
 
   // Initial load: default to teacher's class and section once if assigned
   const initialMountRef = useRef(false);
@@ -234,8 +279,8 @@ export default function TakeAttendance() {
   };
 
   const classStudents = useMemo(() =>
-    students.filter(s => s.class === activeClass && s.section === activeSection)
-      .sort((a, b) => a.rollNumber.localeCompare(b.rollNumber, undefined, { numeric: true })),
+    students.filter(s => isMatch(s, activeClass, activeSection))
+      .sort((a, b) => String(a.rollNumber || '').localeCompare(String(b.rollNumber || ''), undefined, { numeric: true })),
     [students, activeClass, activeSection]
   );
 
@@ -350,8 +395,8 @@ export default function TakeAttendance() {
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Class</span>
               <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-[#111726] p-1 rounded-xl border border-slate-200 dark:border-white/10 w-fit max-w-full">
-                {Array.from(new Set([...students.map(s => s.class), '8', '9', '10'])).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(cls => {
-                  const isSelected = activeClass === cls;
+                {Array.from(new Set([...students.map(s => String(s.class || '').trim()), '8', '9', '10'])).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(cls => {
+                  const isSelected = String(activeClass || '').trim() === String(cls || '').trim();
                   return (
                     <button
                       key={cls}
@@ -373,8 +418,8 @@ export default function TakeAttendance() {
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Section</span>
               <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-[#111726] p-1 rounded-xl border border-slate-200 dark:border-white/10 w-fit max-w-full">
-                {Array.from(new Set([...students.map(s => s.section), 'A', 'B'])).sort().map(sec => {
-                  const isSelected = activeSection === sec;
+                {Array.from(new Set([...students.map(s => String(s.section || '').trim().toUpperCase()), 'A', 'B'])).filter(Boolean).sort().map(sec => {
+                  const isSelected = String(activeSection || '').trim().toUpperCase() === String(sec || '').trim().toUpperCase();
                   return (
                     <button
                       key={sec}
@@ -775,7 +820,7 @@ export default function TakeAttendance() {
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-xl font-black tracking-tight text-slate-900 uppercase">
-                {settings.schoolName || 'Greenwood High School'}
+                {settings.collegeName || settings.schoolName || 'Official Attendance Register'}
               </h1>
               <p className="text-xs font-semibold text-slate-600 mt-0.5">
                 Official Student Daily Attendance Register

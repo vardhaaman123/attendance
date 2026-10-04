@@ -1,13 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Strict Security Rule:
-    // Only the authorized administrator account (ainapure290@gmail.com)
-    // can read or write any documents or sessions.
-    match /{document=**} {
-      allow read, write: if request.auth != null && 
-                            request.auth.token.email != null &&
-                            request.auth.token.email.lower() == 'ainapure290@gmail.com';
+
+    // All school data lives under /schools/{schoolId}/**
+    // Allows full access for Admin, Teachers, and Students
+    match /schools/{schoolId}/{document=**} {
+      allow read, write: if true;
+    }
+
+    // Global User Routing Lookup for Multi-Tenant verification
+    match /users_lookup/{document=**} {
+      allow read, write: if true;
     }
   }
 }
+
+

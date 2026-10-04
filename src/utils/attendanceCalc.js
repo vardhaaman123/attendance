@@ -1,18 +1,36 @@
 // Utility functions for attendance calculation
 
 export function calcAttendanceStats(students, attendanceRecord) {
-  if (!attendanceRecord) return { present: 0, absent: 0, late: 0, total: students.length, percentage: 0 };
+  if (!attendanceRecord) return { present: 0, absent: 0, late: 0, total: students ? students.length : 0, percentage: 0 };
 
   let present = 0, absent = 0, late = 0;
-  students.forEach(s => {
-    const status = attendanceRecord.attendance?.[s.id];
+  const attMap = attendanceRecord.attendance || {};
+
+  if (students && students.length > 0) {
+    students.forEach(s => {
+      const sId = s.id || s._docId;
+      const status = attMap[sId] !== undefined ? attMap[sId] : (s.id ? attMap[s.id] : undefined);
+      if (status === 'present') present++;
+      else if (status === 'absent') absent++;
+      else if (status === 'late') late++;
+      else absent++;
+    });
+
+    const total = students.length;
+    const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+    return { present, absent, late, total, percentage };
+  }
+
+  // Fallback: If students array is not yet loaded or empty, compute directly from attendance record map
+  const entries = Object.values(attMap);
+  entries.forEach(status => {
     if (status === 'present') present++;
     else if (status === 'absent') absent++;
     else if (status === 'late') late++;
     else absent++;
   });
 
-  const total = students.length;
+  const total = entries.length;
   const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
   return { present, absent, late, total, percentage };
 }
@@ -47,7 +65,10 @@ export function getStudentMonthlyCalendar(studentId, allRecords, year, month) {
 }
 
 export function getClassStats(cls, section, allRecords, allStudents) {
-  const students = allStudents.filter(s => s.class === cls && s.section === section);
+  const students = allStudents.filter(s =>
+    String(s.class || '').trim() === String(cls || '').trim() &&
+    String(s.section || '').trim().toUpperCase() === String(section || '').trim().toUpperCase()
+  );
   const today = new Date().toISOString().split('T')[0];
   const key = `${today}_${cls}_${section}`;
   const todayRecord = allRecords[key];
@@ -59,9 +80,10 @@ export function getTodayStats(allStudents, allRecords) {
   let present = 0, absent = 0, late = 0;
 
   allStudents.forEach(s => {
+    const sId = s.id || s._docId;
     const key = `${today}_${s.class}_${s.section}`;
     const record = allRecords[key];
-    const status = record?.attendance?.[s.id];
+    const status = record?.attendance?.[sId];
     if (status === 'present') present++;
     else if (status === 'late') late++;
     else if (status === 'absent') absent++;
@@ -139,12 +161,13 @@ export function getMonthlyData(allStudents, allRecords) {
 export function getClassComparison(allStudents, allRecords) {
   return ['8', '9', '10'].map(cls => {
     let present = 0, total = 0;
-    const students = allStudents.filter(s => s.class === cls);
+    const students = allStudents.filter(s => String(s.class || '').trim() === String(cls).trim());
     students.forEach(s => {
+      const sId = s.id || s._docId;
       Object.values(allRecords).forEach(record => {
-        if (record.class === cls && record.attendance?.[s.id]) {
+        if (String(record.class || '').trim() === String(cls).trim() && record.attendance?.[sId]) {
           total++;
-          if (record.attendance[s.id] === 'present' || record.attendance[s.id] === 'late') present++;
+          if (record.attendance[sId] === 'present' || record.attendance[sId] === 'late') present++;
         }
       });
     });
