@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Search, Edit2, Trash2, Eye, Download, Upload, MoreVertical, Key, Sparkles, RefreshCw, CheckSquare } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Eye, Download, Upload, MoreVertical, Key, Sparkles, RefreshCw, CheckSquare, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { calcStudentAttendancePercentage } from '../../utils/attendanceCalc';
@@ -172,6 +172,7 @@ export default function StudentList() {
   const [classFilter, setClassFilter] = useState(() => (teacherClass || 'all'));
   const [sectionFilter, setSectionFilter] = useState(() => (teacherSection || 'all'));
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [deleteSelectedModalOpen, setDeleteSelectedModalOpen] = useState(false);
   const [isDeletingSelected, setIsDeletingSelected] = useState(false);
@@ -325,6 +326,7 @@ export default function StudentList() {
       }
       addToast(`${selectedStudentIds.length} students deleted successfully.`, 'info');
       setSelectedStudentIds([]);
+      setIsDeleteMode(false);
       setDeleteSelectedModalOpen(false);
     } catch (err) {
       console.error('Failed to delete selected students:', err);
@@ -489,14 +491,38 @@ export default function StudentList() {
             <span className="hidden sm:inline">Export</span>
           </button>
           {!isTeacher && (
-            <button
-              onClick={() => setDeleteClassModalOpen(true)}
-              className="btn-secondary text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border-rose-500/20 cursor-pointer"
-              title="Delete a class or all classes"
-            >
-              <Trash2 size={15} />
-              <span className="hidden sm:inline">Delete Class</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  if (isDeleteMode) {
+                    setIsDeleteMode(false);
+                    setSelectedStudentIds([]);
+                  } else {
+                    setIsDeleteMode(true);
+                  }
+                }}
+                className={`btn-secondary cursor-pointer transition-all ${
+                  isDeleteMode
+                    ? 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-sm shadow-rose-500/20 ring-1 ring-rose-500/30 font-semibold'
+                    : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border-rose-500/20'
+                }`}
+                title={isDeleteMode ? 'Cancel delete mode' : 'Select and delete specific students'}
+              >
+                {isDeleteMode ? <X size={15} /> : <Trash2 size={15} />}
+                <span>{isDeleteMode ? 'Cancel' : 'Delete'}</span>
+              </button>
+              {!isDeleteMode && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteClassModalOpen(true)}
+                  className="btn-secondary text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border-slate-200 dark:border-white/10 cursor-pointer"
+                  title="Delete an entire class or all classes"
+                >
+                  <span className="hidden sm:inline">Delete Class</span>
+                </button>
+              )}
+            </>
           )}
           <button onClick={() => setAddOpen(true)} className="btn-primary">
             <Plus size={15} /> {isTeacher ? 'Enroll Student' : 'Add Student'}
@@ -613,27 +639,40 @@ export default function StudentList() {
       </div>
 
       {/* Bulk Selection Action Bar */}
-      {!isTeacher && selectedStudentIds.length > 0 && (
-        <div className="sticky top-2 z-30 flex items-center justify-between p-3 px-4 rounded-xl bg-slate-900/95 dark:bg-[#111726]/95 border border-rose-500/40 shadow-2xl backdrop-blur-xl animate-slide-down">
+      {!isTeacher && isDeleteMode && (
+        <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-3 p-3 px-4 rounded-xl bg-slate-900/95 dark:bg-[#111726]/95 border border-rose-500/40 shadow-2xl backdrop-blur-xl animate-slide-down">
           <div className="flex items-center gap-2.5">
             <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
             <span className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
               <CheckSquare size={16} className="text-rose-400" />
-              {selectedStudentIds.length} {selectedStudentIds.length === 1 ? 'student' : 'students'} selected
+              {selectedStudentIds.length === 0
+                ? 'Select students below to delete'
+                : `${selectedStudentIds.length} ${selectedStudentIds.length === 1 ? 'student' : 'students'} selected`}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setSelectedStudentIds([])}
+              onClick={handleToggleSelectAll}
+              className="text-xs text-rose-300 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              {isAllSelected ? 'Deselect All' : `Select All (${filtered.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsDeleteMode(false);
+                setSelectedStudentIds([]);
+              }}
               className="text-xs text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
             >
-              Clear
+              Cancel
             </button>
             <button
               type="button"
               onClick={() => setDeleteSelectedModalOpen(true)}
-              className="btn-danger text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/20"
+              disabled={selectedStudentIds.length === 0}
+              className="btn-danger text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Trash2 size={13} />
               Delete Selected ({selectedStudentIds.length})
@@ -648,8 +687,8 @@ export default function StudentList() {
           <table className="w-full">
             <thead>
               <tr className="bg-slate-50 dark:bg-[#111726]/80 border-b border-slate-100 dark:border-white/10">
-                {!isTeacher && (
-                  <th className="w-10 px-4 py-3 text-center">
+                {!isTeacher && isDeleteMode && (
+                  <th className="w-10 px-4 py-3 text-center animate-fade-in">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -670,7 +709,7 @@ export default function StudentList() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={isTeacher ? 6 : 7} className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
+                  <td colSpan={!isTeacher && isDeleteMode ? 7 : 6} className="text-center py-12 text-slate-500 dark:text-slate-400 text-sm">
                     No students found.
                   </td>
                 </tr>
@@ -689,14 +728,17 @@ export default function StudentList() {
                   return (
                     <tr
                       key={student.id}
+                      onClick={!isTeacher && isDeleteMode ? () => handleToggleSelectStudent(sId) : undefined}
                       className={`border-b border-slate-100 dark:border-white/[0.06] last:border-0 hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-all ${
+                        !isTeacher && isDeleteMode ? 'cursor-pointer' : ''
+                      } ${
                         isSelected ? 'bg-blue-500/[0.07] dark:bg-blue-500/[0.12]' : ''
                       } ${
                         isRecentlyUpdated ? 'bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12] ring-1 ring-emerald-500/40' : ''
                       }`}
                     >
-                      {!isTeacher && (
-                        <td className="w-10 px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      {!isTeacher && isDeleteMode && (
+                        <td className="w-10 px-4 py-3 text-center animate-fade-in" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -807,12 +849,12 @@ export default function StudentList() {
                 {/* Header row: Avatar, Name, Roll No, Class-Section, Attendance %, 3-dots Menu */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    {!isTeacher && (
+                    {!isTeacher && isDeleteMode && (
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleToggleSelectStudent(sId)}
-                        className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-brand-blue focus:ring-brand-blue/30 cursor-pointer accent-blue-500 flex-shrink-0"
+                        className="w-4 h-4 rounded border-slate-300 dark:border-white/20 text-brand-blue focus:ring-brand-blue/30 cursor-pointer accent-blue-500 flex-shrink-0 animate-fade-in"
                       />
                     )}
                     <div
