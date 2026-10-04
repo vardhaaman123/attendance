@@ -5,6 +5,7 @@ import {
   Edit2,
   Trash2,
   GraduationCap,
+  Users,
   Download,
   Upload,
   BookOpen,
@@ -45,22 +46,96 @@ function ConfirmDeleteTeacherModal({ open, teacher, onConfirm, onClose }) {
   );
 }
 
-function ConfirmDeleteAllTeachersModal({ open, count, onConfirm, onClose, isDeleting }) {
+function DeleteAllSelectorModal({ open, teachersCount = 0, studentsCount = 0, onConfirm, onClose, isDeleting }) {
+  const [targetType, setTargetType] = useState('teachers'); // 'teachers' | 'students' | 'both'
+
+  const options = [
+    {
+      id: 'teachers',
+      title: 'Teachers',
+      count: teachersCount,
+      label: `${teachersCount} ${teachersCount === 1 ? 'Teacher' : 'Teachers'}`,
+      description: `This will permanently delete all ${teachersCount} teachers and revoke their login credentials. Student records will remain untouched.`,
+      icon: GraduationCap,
+      badgeColor: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    },
+    {
+      id: 'students',
+      title: 'Students',
+      count: studentsCount,
+      label: `${studentsCount} ${studentsCount === 1 ? 'Student' : 'Students'}`,
+      description: `This will permanently delete all ${studentsCount} students across all classes and remove their attendance records. Teachers will remain untouched.`,
+      icon: Users,
+      badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    },
+    {
+      id: 'both',
+      title: 'Both (All)',
+      count: teachersCount + studentsCount,
+      label: `${teachersCount + studentsCount} Total Records`,
+      description: `This will permanently delete all ${teachersCount} teachers, all ${studentsCount} students, and all attendance records.`,
+      icon: Layers,
+      badgeColor: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    },
+  ];
+
+  const selectedOption = options.find((o) => o.id === targetType) || options[0];
+  const count = selectedOption.count;
+
   return (
-    <Modal open={open} onClose={onClose} title="Delete All Teachers" maxWidth="max-w-md">
+    <Modal open={open} onClose={onClose} title="Delete All Records" maxWidth="max-w-lg">
       <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+            Select what you want to delete:
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            {options.map((opt) => {
+              const Icon = opt.icon;
+              const isSelected = targetType === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setTargetType(opt.id)}
+                  className={`flex flex-col text-left p-3 rounded-xl border transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-rose-500/10 border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.15)] ring-1 ring-rose-500/30'
+                      : 'bg-slate-50 dark:bg-white/[0.03] border-slate-200 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full mb-2">
+                    <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-rose-500/20 text-rose-400' : 'bg-slate-200 dark:bg-white/10 text-slate-400'}`}>
+                      <Icon size={16} />
+                    </div>
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${opt.badgeColor}`}>
+                      {opt.count}
+                    </span>
+                  </div>
+                  <span className={`text-xs font-bold leading-tight ${isSelected ? 'text-rose-500 dark:text-rose-300' : 'text-slate-800 dark:text-slate-200'}`}>
+                    {opt.title}
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-300 text-xs flex items-start gap-2.5">
           <Trash2 size={16} className="text-red-500 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold text-red-600 dark:text-red-200">Warning: Permanent Deletion</p>
             <p className="leading-relaxed">
-              This will permanently delete <strong>all {count} teachers</strong> from the institution. Their login credentials will be revoked immediately and this action cannot be undone.
+              {selectedOption.description}
             </p>
           </div>
         </div>
 
         <p className="text-xs text-slate-500 dark:text-slate-400">
-          Are you sure you want to proceed and delete all teachers?
+          This action cannot be undone. Are you sure you want to proceed?
         </p>
 
         <div className="flex gap-3 justify-end pt-2">
@@ -68,12 +143,12 @@ function ConfirmDeleteAllTeachersModal({ open, count, onConfirm, onClose, isDele
             Cancel
           </button>
           <button
-            onClick={onConfirm}
+            onClick={() => onConfirm(targetType)}
             disabled={isDeleting || count === 0}
             className="btn-danger flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Trash2 size={14} />
-            {isDeleting ? 'Deleting...' : `Delete All Teachers (${count})`}
+            {isDeleting ? 'Deleting...' : `Delete ${selectedOption.title} (${count})`}
           </button>
         </div>
       </div>
@@ -82,7 +157,7 @@ function ConfirmDeleteAllTeachersModal({ open, count, onConfirm, onClose, isDele
 }
 
 export default function TeacherList() {
-  const { teachers, deleteTeacher, deleteAllTeachers, addToast, students, saveTeachers, refreshTeachers, recentlyUpdatedTeacherId } = useApp();
+  const { teachers, deleteTeacher, deleteAllTeachers, deleteClass, addToast, students, saveTeachers, refreshTeachers, recentlyUpdatedTeacherId } = useApp();
   const { user, activeCollegeId } = useAuth();
   const [search, setSearch] = useState('');
   const [classFilter, setClassFilter] = useState('all');
@@ -178,17 +253,26 @@ export default function TeacherList() {
     setDeleteTarget(null);
   };
 
-  const handleDeleteAllTeachers = async () => {
+  const handleDeleteAll = async (targetType) => {
     setIsDeletingAll(true);
     try {
-      if (deleteAllTeachers) {
-        await deleteAllTeachers();
+      if (targetType === 'teachers') {
+        if (deleteAllTeachers) await deleteAllTeachers();
+        addToast('All teachers have been removed successfully.', 'info');
+      } else if (targetType === 'students') {
+        if (deleteClass) await deleteClass('all');
+        addToast('All students and attendance records have been removed successfully.', 'info');
+      } else if (targetType === 'both') {
+        const promises = [];
+        if (deleteAllTeachers) promises.push(deleteAllTeachers());
+        if (deleteClass) promises.push(deleteClass('all'));
+        await Promise.all(promises);
+        addToast('All teachers and students have been removed successfully.', 'info');
       }
-      addToast('All teachers have been removed successfully.', 'info');
       setDeleteAllOpen(false);
     } catch (err) {
-      console.error('Failed to delete all teachers:', err);
-      addToast('Failed to delete all teachers. Please try again.', 'error');
+      console.error('Failed to delete records:', err);
+      addToast('Failed to delete selected records. Please try again.', 'error');
     } finally {
       setIsDeletingAll(false);
     }
@@ -363,9 +447,9 @@ export default function TeacherList() {
           <button
             type="button"
             onClick={() => setDeleteAllOpen(true)}
-            disabled={teachers.length === 0}
+            disabled={(teachers?.length || 0) === 0 && (students?.length || 0) === 0}
             className="btn-secondary text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 border-rose-500/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Delete all teachers"
+            title="Delete all teachers or students"
           >
             <Trash2 size={15} />
             <span className="hidden sm:inline">Delete All</span>
@@ -784,10 +868,11 @@ export default function TeacherList() {
         onClose={() => setSlipTeacher(null)}
       />
 
-      <ConfirmDeleteAllTeachersModal
+      <DeleteAllSelectorModal
         open={deleteAllOpen}
-        count={teachers.length}
-        onConfirm={handleDeleteAllTeachers}
+        teachersCount={teachers?.length || 0}
+        studentsCount={students?.length || 0}
+        onConfirm={handleDeleteAll}
         onClose={() => !isDeletingAll && setDeleteAllOpen(false)}
         isDeleting={isDeletingAll}
       />
