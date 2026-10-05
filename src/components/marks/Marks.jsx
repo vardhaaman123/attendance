@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import {
   BookOpen, Plus, Edit2, Trash2, Save,
   Search, Users, GraduationCap, Award, TrendingUp,
-  BarChart3, Check, AlertCircle
+  BarChart3, Check, AlertCircle, Lock, Eye
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
@@ -120,7 +120,8 @@ function ExamModal({ open, exam, students, onSave, onClose }) {
 export default function Marks() {
   const { students, addToast, exams = [], saveExams, deleteExam, clearAllExams, refreshStudents } = useApp();
   const { role } = useAuth();
-  const canEdit = role === "admin" || role === "teacher";
+  const canEdit = role === "teacher";
+  const isAdmin = role === "admin";
   const [examModal, setExamModal] = useState({ open: false, exam: null });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [clearAllOpen, setClearAllOpen] = useState(false);
@@ -141,6 +142,10 @@ export default function Marks() {
   const availableClasses = useMemo(() => Array.from(new Set(students.map(s => String(s.class || '').trim()))).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })), [students]);
   const filteredExams = useMemo(() => exams.filter(e => { const ms = !search || String(e.name || '').toLowerCase().includes(search.toLowerCase()) || String(e.subject || '').toLowerCase().includes(search.toLowerCase()); const msu = filterSubject === "all" || e.subject === filterSubject; const mt = filterExamType === "all" || e.examType === filterExamType; const mc = filterClass === "all" || e.classFilter === filterClass || e.classFilter === "all"; return ms && msu && mt && mc; }).sort((a, b) => new Date(b.date) - new Date(a.date)), [exams, search, filterSubject, filterExamType, filterClass]);
   const handleSaveExam = async (form) => {
+    if (!canEdit) {
+      addToast("Administrators have view-only access. Only teachers can record or edit marks.", "error");
+      return;
+    }
     try {
       if (examModal.exam) {
         const u = exams.map(e => e.id === examModal.exam.id ? { ...e, ...form } : e);
@@ -159,6 +164,10 @@ export default function Marks() {
     setExamModal({ open: false, exam: null });
   };
   const handleDelete = async (exam) => {
+    if (!canEdit) {
+      addToast("Administrators cannot delete exam records.", "error");
+      return;
+    }
     try {
       if (deleteExam) {
         await deleteExam(exam.id || exam._docId);
@@ -174,6 +183,10 @@ export default function Marks() {
     if (viewExam?.id === exam.id) setViewExam(null);
   };
   const handleClearAll = async () => {
+    if (!canEdit) {
+      addToast("Administrators cannot clear exam records.", "error");
+      return;
+    }
     try {
       if (clearAllExams) {
         await clearAllExams();
@@ -202,7 +215,7 @@ export default function Marks() {
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{exams.length} exam{exams.length !== 1 ? "s" : ""} recorded</p>
         </div>
-        {canEdit && !viewExam && (
+        {canEdit && !viewExam ? (
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {exams.length > 0 && (
               <button
@@ -219,11 +232,19 @@ export default function Marks() {
               <Plus size={15} /> Add Exam
             </button>
           </div>
+        ) : (
+          !viewExam && (
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 bg-white/[0.04] border border-white/[0.08]">
+                <Lock size={12} /> Read-only Marks View
+              </span>
+            </div>
+          )
         )}
       </div>
       {!viewExam && (
         <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-3.5 sm:p-4 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3 items-center">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${canEdit ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-2.5 sm:gap-3 items-center`}>
             <div className="relative w-full sm:col-span-2 lg:col-span-1">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search exam name or subject..." className="input-field pl-10 w-full" />
@@ -254,10 +275,16 @@ export default function Marks() {
               <h2 className="text-lg font-bold text-slate-900 dark:text-white break-words">{viewExam.name}</h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 break-words mt-0.5">{viewExam.examType} &bull; {viewExam.subject} &bull; {viewExam.date ? new Date(viewExam.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : ""} &bull; Class {viewExam.classFilter === "all" ? "All" : viewExam.classFilter}{viewExam.sectionFilter !== "all" ? `-${viewExam.sectionFilter}` : ""}</p>
             </div>
-            {canEdit && (
+            {canEdit ? (
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <button onClick={() => setExamModal({ open: true, exam: viewExam })} className="btn-secondary flex-1 sm:flex-initial min-h-[38px] justify-center"><Edit2 size={14} /> Edit Marks</button>
                 <button onClick={() => setDeleteTarget(viewExam)} className="btn-secondary text-rose-400 border-rose-500/20 flex-1 sm:flex-initial min-h-[38px] justify-center"><Trash2 size={14} /> Delete</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 bg-white/[0.04] border border-white/[0.08]">
+                  <Lock size={12} /> Read-only
+                </span>
               </div>
             )}
           </div>
@@ -443,7 +470,17 @@ export default function Marks() {
                           <td className="px-4 py-3 text-center hidden md:table-cell">{gi ? <span className={`text-xs font-bold px-2 py-0.5 rounded border ${gi.bg} ${gi.color}`}>{ap}%</span> : <span className="text-xs text-slate-400">-</span>}</td>
                           <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => setViewExam(exam)} className="p-1.5 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-blue-400 transition-colors cursor-pointer" title="View Results"><GraduationCap size={15} /></button>
+                              <button
+                                onClick={() => setViewExam(exam)}
+                                className={canEdit
+                                  ? "p-1.5 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-blue-400 transition-colors cursor-pointer"
+                                  : "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 text-xs font-semibold transition-all cursor-pointer shadow-2xs"
+                                }
+                                title="View Student Marks"
+                              >
+                                <GraduationCap size={15} />
+                                {!canEdit && <span>View Marks</span>}
+                              </button>
                               {canEdit && (
                                 <>
                                   <button onClick={() => setExamModal({ open: true, exam })} className="p-1.5 rounded-lg hover:bg-white/[0.08] text-slate-400 hover:text-amber-400 transition-colors cursor-pointer" title="Edit Marks"><Edit2 size={15} /></button>
@@ -547,24 +584,28 @@ export default function Marks() {
           )}
         </div>
       )}
-      <ExamModal open={examModal.open} exam={examModal.exam} students={students} onSave={handleSaveExam} onClose={() => setExamModal({ open: false, exam: null })} />
-      <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Exam"><div className="space-y-4"><p className="text-sm text-slate-600 dark:text-slate-300">Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-white">"{deleteTarget?.name}"</span>? All marks data will be permanently removed.</p><div className="flex gap-3 justify-end"><button onClick={() => setDeleteTarget(null)} className="btn-secondary">Cancel</button><button onClick={() => handleDelete(deleteTarget)} className="btn-danger">Delete Exam</button></div></div></Modal>
-      <Modal open={clearAllOpen} onClose={() => setClearAllOpen(false)} title="Delete All Exams">
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Are you sure you want to delete <span className="font-bold text-rose-500">all {exams.length} exam records</span>?
-          </p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            This will permanently remove all exams and recorded marks across all classes and subjects for both Admin and Teacher portals. This action cannot be undone.
-          </p>
-          <div className="flex gap-3 justify-end pt-2">
-            <button onClick={() => setClearAllOpen(false)} className="btn-secondary">Cancel</button>
-            <button onClick={handleClearAll} className="btn-danger flex items-center gap-1.5">
-              <Trash2 size={14} /> Delete All Exams
-            </button>
-          </div>
-        </div>
-      </Modal>
+      {canEdit && (
+        <>
+          <ExamModal open={examModal.open} exam={examModal.exam} students={students} onSave={handleSaveExam} onClose={() => setExamModal({ open: false, exam: null })} />
+          <Modal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Exam"><div className="space-y-4"><p className="text-sm text-slate-600 dark:text-slate-300">Are you sure you want to delete <span className="font-bold text-slate-900 dark:text-white">"{deleteTarget?.name}"</span>? All marks data will be permanently removed.</p><div className="flex gap-3 justify-end"><button onClick={() => setDeleteTarget(null)} className="btn-secondary">Cancel</button><button onClick={() => handleDelete(deleteTarget)} className="btn-danger">Delete Exam</button></div></div></Modal>
+          <Modal open={clearAllOpen} onClose={() => setClearAllOpen(false)} title="Delete All Exams">
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Are you sure you want to delete <span className="font-bold text-rose-500">all {exams.length} exam records</span>?
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                This will permanently remove all exams and recorded marks across all classes and subjects for both Admin and Teacher portals. This action cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end pt-2">
+                <button onClick={() => setClearAllOpen(false)} className="btn-secondary">Cancel</button>
+                <button onClick={handleClearAll} className="btn-danger flex items-center gap-1.5">
+                  <Trash2 size={14} /> Delete All Exams
+                </button>
+              </div>
+            </div>
+          </Modal>
+        </>
+      )}
     </div>
   );
 }

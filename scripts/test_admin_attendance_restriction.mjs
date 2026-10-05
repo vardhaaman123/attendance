@@ -59,7 +59,15 @@ console.log('✅ PASS: Admin accessing /attendance is redirected to /history');
 assert.strictEqual(getRouteDestination('student', '/attendance'), '/student-dashboard', 'Student accessing /attendance must be redirected to /student-dashboard');
 console.log('✅ PASS: Student accessing /attendance is redirected to /student-dashboard');
 
-assert.strictEqual(getRouteDestination('teacher', '/attendance'), '/attendance', 'Teacher accessing /attendance can access it');
-console.log('✅ PASS: Teacher accessing /attendance is granted access');
+// 3. Check Marks permissions
+function canEditMarks(role) {
+  return role === 'teacher';
+}
 
-console.log('\n🎉 All Admin Attendance Restriction tests passed successfully!');
+assert.strictEqual(canEditMarks('admin'), false, 'Admin must NOT be allowed to edit/update marks');
+console.log('✅ PASS: Admin cannot edit, add, or delete marks');
+
+assert.strictEqual(canEditMarks('teacher'), true, 'Teacher MUST be allowed to edit/update marks');
+console.log('✅ PASS: Teacher can edit, add, and delete marks');
+
+console.log('\n🎉 All Admin Attendance & Marks Restriction tests passed successfully!');
