@@ -1166,6 +1166,67 @@ export function AppProvider({ children }) {
     }
   }, [getTargetCollege]);
 
+  const deleteMessagesForMe = useCallback(async (msgIds, userId) => {
+    if (!msgIds || (Array.isArray(msgIds) && msgIds.length === 0) || !userId) return;
+    const targetCollege = getTargetCollege();
+    const idList = Array.isArray(msgIds) ? msgIds : [msgIds];
+
+    // Optimistic update in state
+    setMessages((prev) =>
+      prev.map((msg) => {
+        const id = msg.id || msg._docId;
+        if (idList.includes(id)) {
+          const deletedFor = Array.isArray(msg.deletedFor) ? msg.deletedFor : [];
+          if (!deletedFor.includes(userId)) {
+            return { ...msg, deletedFor: [...deletedFor, userId] };
+          }
+        }
+        return msg;
+      })
+    );
+
+    // Save to local storage cache index
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const key = `_attendify_deleted_for_me_${userId}`;
+        const raw = window.localStorage.getItem(key);
+        const set = new Set(raw ? JSON.parse(raw) : []);
+        idList.forEach((id) => set.add(id));
+        window.localStorage.setItem(key, JSON.stringify(Array.from(set)));
+
+        const cacheRaw = window.localStorage.getItem('_attendify_messages_cache');
+        if (cacheRaw) {
+          const list = JSON.parse(cacheRaw);
+          const next = list.map((msg) => {
+            const id = msg.id || msg._docId;
+            if (idList.includes(id)) {
+              const deletedFor = Array.isArray(msg.deletedFor) ? msg.deletedFor : [];
+              if (!deletedFor.includes(userId)) {
+                return { ...msg, deletedFor: [...deletedFor, userId] };
+              }
+            }
+            return msg;
+          });
+          window.localStorage.setItem('_attendify_messages_cache', JSON.stringify(next));
+        }
+      }
+    } catch (_) {}
+
+    // Save updated deletedFor field to Firestore
+    try {
+      for (const msgId of idList) {
+        const msg = messagesRef.current.find((m) => (m.id || m._docId) === msgId);
+        if (!msg) continue;
+        const deletedFor = Array.isArray(msg.deletedFor) ? msg.deletedFor : [];
+        if (!deletedFor.includes(userId)) {
+          await saveDoc('messages', msgId, { ...msg, deletedFor: [...deletedFor, userId] }, targetCollege);
+        }
+      }
+    } catch (e) {
+      console.warn('deleteMessagesForMe save error:', e);
+    }
+  }, [getTargetCollege]);
+
   const reactToMessage = useCallback(async (msgId, emoji) => {
     const targetCollege = getTargetCollege();
     const msg = messagesRef.current.find((m) => (m.id || m._docId) === msgId);
@@ -1491,7 +1552,7 @@ export function AppProvider({ children }) {
       recentlyUpdatedStudentId,
       teachers, saveTeachers, addTeacher, updateTeacher, deleteTeacher, deleteAllTeachers, deleteMultipleTeachers, refreshTeachers,
       recentlyUpdatedTeacherId, lastLiveSyncTime,
-      messages, addMessage, deleteMessage, reactToMessage, markMessagesAsRead,
+      messages, addMessage, deleteMessage, deleteMessagesForMe, reactToMessage, markMessagesAsRead,
       exams, saveExams, deleteExam, clearAllExams,
       attendanceRecords, saveAttendanceRecord, deleteAttendanceRecord, refreshAttendance,
       settings, saveSettings, resetAllSchoolData,

@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import {
   Send,
   Users,
+  User,
   UserCheck,
   MessageSquare,
   Search,
@@ -32,7 +33,7 @@ const EMOJIS = ['👍', '❤️', '🎉', '👏', '📢', '⏰', '📝', '✅'];
 
 export default function Messages() {
   const { role, user, currentStudent } = useAuth();
-  const { teachers, students, messages, addMessage, deleteMessage, reactToMessage, markMessagesAsRead, addToast } = useApp();
+  const { teachers, students, messages, addMessage, deleteMessage, deleteMessagesForMe, reactToMessage, markMessagesAsRead, addToast } = useApp();
 
   const [activeTab, setActiveTab] = useState('broadcast');
   const [selectedRecipientId, setSelectedRecipientId] = useState('all');
@@ -47,7 +48,7 @@ export default function Messages() {
   const [copiedId, setCopiedId] = useState(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
-  const [confirmDeleteModalOpen, setConfirmDeleteModalOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null); // null | { isBatch: true } | { isBatch: false, msg: any }
   const [isDeleting, setIsDeleting] = useState(false);
 
   const messagesEndRef = useRef(null);
@@ -131,6 +132,37 @@ export default function Messages() {
       user?.name?.toLowerCase().trim(),
     ].filter(Boolean);
   }, [normRole, currentStudentRecord, currentStudent, currentTeacherRecord, user]);
+
+  // Track messages hidden locally via "Delete for me"
+  const [deletedForMeIds, setDeletedForMeIds] = useState(() => {
+    try {
+      const stored = typeof window !== 'undefined' && myId ? localStorage.getItem(`_attendify_deleted_for_me_${myId}`) : null;
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const stored = typeof window !== 'undefined' && myId ? localStorage.getItem(`_attendify_deleted_for_me_${myId}`) : null;
+      setDeletedForMeIds(stored ? new Set(JSON.parse(stored)) : new Set());
+    } catch {
+      setDeletedForMeIds(new Set());
+    }
+  }, [myId]);
+
+  // Check if message has been deleted for the current user
+  const isDeletedForMe = useCallback((msg) => {
+    if (!msg) return false;
+    const id = msg.id || msg._docId;
+    if (id && deletedForMeIds.has(id)) return true;
+    if (Array.isArray(msg.deletedFor)) {
+      if (myId && msg.deletedFor.includes(myId)) return true;
+      if (myAllIds.some((uid) => msg.deletedFor.includes(uid))) return true;
+    }
+    return false;
+  }, [deletedForMeIds, myId, myAllIds]);
 
   // Selected recipient entity resolution
   const selectedTeacher = useMemo(() => {
@@ -243,6 +275,7 @@ export default function Messages() {
   // Unread calculation helpers placed before filtered lists for sorting
   const getUnreadCount = useCallback((tab, recId) => {
     return (messages || []).filter(msg => {
+      if (isDeletedForMe(msg)) return false;
       const msgSenderRole = (msg.senderRole || '').toLowerCase();
       const msgTargetRole = (msg.targetRole || '').toLowerCase();
       const isMyMsg =
@@ -285,10 +318,11 @@ export default function Messages() {
       }
       return false;
     }).length;
-  }, [messages, normRole, myId, myAllIds, teachers, students, currentStudentRecord, currentStudent, isMsgSenderStudent, isMsgTargetStudent]);
+  }, [messages, normRole, myId, myAllIds, teachers, students, currentStudentRecord, currentStudent, isMsgSenderStudent, isMsgTargetStudent, isDeletedForMe]);
 
   const getTabUnreadCount = useCallback((tab) => {
     return (messages || []).filter(msg => {
+      if (isDeletedForMe(msg)) return false;
       const msgSenderRole = (msg.senderRole || '').toLowerCase();
       const msgTargetRole = (msg.targetRole || '').toLowerCase();
       const isMyMsg =
@@ -326,7 +360,7 @@ export default function Messages() {
       }
       return false;
     }).length;
-  }, [messages, normRole, myId, myAllIds, currentStudentRecord, currentStudent, isMsgSenderStudent, isMsgTargetStudent]);
+  }, [messages, normRole, myId, myAllIds, currentStudentRecord, currentStudent, isMsgSenderStudent, isMsgTargetStudent, isDeletedForMe]);
 
   const totalUnread = useMemo(() => {
     if (normRole === 'student') {
@@ -600,6 +634,7 @@ export default function Messages() {
   const conversationMessages = useMemo(() => {
     return (messages || [])
       .filter((msg) => {
+        if (isDeletedForMe(msg)) return false;
         const msgSenderRole = (msg.senderRole || '').toLowerCase();
         const msgTargetRole = (msg.targetRole || '').toLowerCase();
         const msgSenderId = msg.senderId;
@@ -708,7 +743,7 @@ export default function Messages() {
         return false;
       })
       .sort((a, b) => new Date(a.timestamp || 0) - new Date(b.timestamp || 0));
-  }, [messages, activeTab, selectedRecipientId, normRole, myAllIds, recipientAllIds, currentStudentRecord, currentStudent, selectedStudent, isMsgSenderStudent, isMsgTargetStudent]);
+  }, [messages, activeTab, selectedRecipientId, normRole, myAllIds, recipientAllIds, currentStudentRecord, currentStudent, selectedStudent, isMsgSenderStudent, isMsgTargetStudent, isDeletedForMe]);
 
   useEffect(() => {
     if (!myId || conversationMessages.length === 0) return;
@@ -741,17 +776,26 @@ export default function Messages() {
     setSelectedMsgIds(new Set());
   }, [selectedRecipientId, activeTab]);
 
-  // Determine if current user has permission to delete a specific message
+  // Determine if current user has permission to delete a specific message for everyone
   const canDeleteMessage = useCallback((msg) => {
     if (!msg) return false;
     if (normRole === 'admin') return true;
     return myAllIds.includes(msg.senderId) || (currentTeacherRecord?.id && msg.senderId === currentTeacherRecord.id);
   }, [normRole, myAllIds, currentTeacherRecord]);
 
-  // Messages in current view that can be deleted by current user
-  const deletableFilteredMessages = useMemo(() => {
-    return filteredMessages.filter((msg) => canDeleteMessage(msg));
-  }, [filteredMessages, canDeleteMessage]);
+  // Check if current target (single message or all batch selected) can be deleted for everyone
+  const targetCanDeleteForEveryone = useMemo(() => {
+    if (!deleteTarget) return false;
+    if (deleteTarget.isBatch) {
+      if (selectedMsgIds.size === 0) return false;
+      for (const id of selectedMsgIds) {
+        const m = (messages || []).find((x) => (x.id || x._docId) === id);
+        if (!m || !canDeleteMessage(m)) return false;
+      }
+      return true;
+    }
+    return canDeleteMessage(deleteTarget.msg);
+  }, [deleteTarget, selectedMsgIds, messages, canDeleteMessage]);
 
   const toggleSelectMessage = useCallback((msgId) => {
     setSelectedMsgIds((prev) => {
@@ -766,35 +810,81 @@ export default function Messages() {
   }, []);
 
   const handleToggleSelectAll = useCallback(() => {
-    if (selectedMsgIds.size === deletableFilteredMessages.length && deletableFilteredMessages.length > 0) {
+    if (selectedMsgIds.size === filteredMessages.length && filteredMessages.length > 0) {
       setSelectedMsgIds(new Set());
     } else {
-      setSelectedMsgIds(new Set(deletableFilteredMessages.map((m) => m.id)));
+      setSelectedMsgIds(new Set(filteredMessages.map((m) => m.id || m._docId)));
     }
-  }, [selectedMsgIds.size, deletableFilteredMessages]);
+  }, [selectedMsgIds.size, filteredMessages]);
 
-  const handleConfirmBatchDelete = async () => {
-    if (selectedMsgIds.size === 0 || isDeleting) return;
+  const handleDeleteForEveryone = async () => {
+    if (isDeleting || !deleteTarget) return;
     setIsDeleting(true);
-    const count = selectedMsgIds.size;
-    const idsToDelete = Array.from(selectedMsgIds);
-    try {
-      // Close confirmation dialog and exit selection mode immediately
-      setConfirmDeleteModalOpen(false);
-      setIsSelectMode(false);
-      setSelectedMsgIds(new Set());
+    const ids = deleteTarget.isBatch
+      ? Array.from(selectedMsgIds)
+      : (deleteTarget.msg ? [deleteTarget.msg.id || deleteTarget.msg._docId] : []);
+    const count = ids.length;
 
-      await Promise.all(idsToDelete.map((id) => deleteMessage(id)));
+    try {
+      setDeleteTarget(null);
+      if (deleteTarget.isBatch) {
+        setIsSelectMode(false);
+        setSelectedMsgIds(new Set());
+      }
+
+      await Promise.all(ids.map((id) => deleteMessage(id)));
       if (addToast) {
         addToast(
-          `Deleted ${count} ${count === 1 ? 'message' : 'messages'} successfully.`,
+          `Deleted ${count} ${count === 1 ? 'message' : 'messages'} for everyone.`,
           'success'
         );
       }
     } catch (err) {
-      console.error('Failed to delete messages:', err);
+      console.error('Failed to delete message(s) for everyone:', err);
       if (addToast) {
-        addToast('Failed to delete selected messages. Please try again.', 'error');
+        addToast('Failed to delete message(s) for everyone.', 'error');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteForMe = async () => {
+    if (isDeleting || !deleteTarget) return;
+    setIsDeleting(true);
+    const ids = deleteTarget.isBatch
+      ? Array.from(selectedMsgIds)
+      : (deleteTarget.msg ? [deleteTarget.msg.id || deleteTarget.msg._docId] : []);
+    const count = ids.length;
+
+    try {
+      setDeleteTarget(null);
+      if (deleteTarget.isBatch) {
+        setIsSelectMode(false);
+        setSelectedMsgIds(new Set());
+      }
+
+      // Optimistically update local state immediately
+      setDeletedForMeIds((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => next.add(id));
+        return next;
+      });
+
+      if (deleteMessagesForMe) {
+        await deleteMessagesForMe(ids, myId);
+      }
+
+      if (addToast) {
+        addToast(
+          `Deleted ${count} ${count === 1 ? 'message' : 'messages'} for you.`,
+          'success'
+        );
+      }
+    } catch (err) {
+      console.error('Failed to delete message(s) for me:', err);
+      if (addToast) {
+        addToast('Failed to delete message(s) for you.', 'error');
       }
     } finally {
       setIsDeleting(false);
@@ -1234,7 +1324,7 @@ export default function Messages() {
 
           <div className="flex items-center gap-2">
             {/* Select Messages Mode Toggle */}
-            {deletableFilteredMessages.length > 0 && (
+            {filteredMessages.length > 0 && (
               <button
                 type="button"
                 onClick={() => {
@@ -1325,9 +1415,9 @@ export default function Messages() {
                 <div
                   key={msg.id}
                   className={`group relative flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade-in ${
-                    isSelectMode && canDelete ? 'cursor-pointer select-none' : ''
+                    isSelectMode ? 'cursor-pointer select-none' : ''
                   }`}
-                  onClick={isSelectMode && canDelete ? () => toggleSelectMessage(msg.id) : undefined}
+                  onClick={isSelectMode ? () => toggleSelectMessage(msg.id) : undefined}
                 >
                   {/* Sender & Timestamp Header */}
                   <div className="flex items-center gap-1.5 mb-1 px-1">
@@ -1337,17 +1427,14 @@ export default function Messages() {
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (canDelete) toggleSelectMessage(msg.id);
+                          toggleSelectMessage(msg.id);
                         }}
-                        disabled={!canDelete}
                         className={`w-4 h-4 rounded flex items-center justify-center transition-all mr-1 flex-shrink-0 cursor-pointer ${
-                          !canDelete
-                            ? 'opacity-20 cursor-not-allowed bg-slate-700 border border-slate-600'
-                            : isSelected
+                          isSelected
                             ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/40 ring-1 ring-blue-400'
                             : 'border border-white/30 hover:border-blue-400 bg-white/[0.04]'
                         }`}
-                        title={!canDelete ? 'Cannot delete this message' : isSelected ? 'Deselect message' : 'Select message'}
+                        title={isSelected ? 'Deselect message' : 'Select message'}
                       >
                         {isSelected && <Check size={11} strokeWidth={3} className="text-white" />}
                       </button>
@@ -1373,7 +1460,7 @@ export default function Messages() {
                     className={`relative max-w-[85%] md:max-w-[70%] px-4 py-2.5 rounded-2xl text-[13.5px] leading-relaxed whitespace-pre-wrap transition-all ${
                       isSelected
                         ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/25 scale-[1.005]'
-                        : isSelectMode && canDelete
+                        : isSelectMode
                         ? 'hover:ring-1 hover:ring-blue-400/40'
                         : ''
                     } ${
@@ -1411,20 +1498,18 @@ export default function Messages() {
                           isMe ? 'left-2 -translate-x-full' : 'right-2 translate-x-full'
                         } hidden group-hover:flex items-center gap-0.5 bg-[#161D2F] border border-white/10 px-1.5 py-1 rounded-full shadow-xl z-20`}
                       >
-                        {canDelete && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsSelectMode(true);
-                              toggleSelectMessage(msg.id);
-                            }}
-                            className="p-1 text-slate-400 hover:text-blue-400 rounded-full hover:bg-white/[0.08] transition-colors"
-                            title="Select message"
-                          >
-                            <CheckSquare size={12} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsSelectMode(true);
+                            toggleSelectMessage(msg.id);
+                          }}
+                          className="p-1 text-slate-400 hover:text-blue-400 rounded-full hover:bg-white/[0.08] transition-colors"
+                          title="Select message"
+                        >
+                          <CheckSquare size={12} />
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleCopy(msg.id, msg.text)}
@@ -1454,16 +1539,17 @@ export default function Messages() {
                         >
                           🎉
                         </button>
-                        {canDelete && (
-                          <button
-                            type="button"
-                            onClick={() => deleteMessage(msg.id)}
-                            className="p-1 text-slate-400 hover:text-red-400 rounded-full hover:bg-red-500/10"
-                            title="Delete message"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget({ isBatch: false, msg });
+                          }}
+                          className="p-1 text-slate-400 hover:text-red-400 rounded-full hover:bg-red-500/10"
+                          title="Delete message"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1523,9 +1609,9 @@ export default function Messages() {
                       onClick={handleToggleSelectAll}
                       className="text-xs font-medium text-slate-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
                     >
-                      <CheckSquare size={13} className={selectedMsgIds.size === deletableFilteredMessages.length && deletableFilteredMessages.length > 0 ? 'text-blue-400' : 'text-slate-400'} />
+                      <CheckSquare size={13} className={selectedMsgIds.size === filteredMessages.length && filteredMessages.length > 0 ? 'text-blue-400' : 'text-slate-400'} />
                       <span>
-                        {selectedMsgIds.size === deletableFilteredMessages.length && deletableFilteredMessages.length > 0
+                        {selectedMsgIds.size === filteredMessages.length && filteredMessages.length > 0
                           ? 'Deselect All'
                           : 'Select All'}
                       </span>
@@ -1534,7 +1620,7 @@ export default function Messages() {
                     <span className="text-xs font-semibold text-slate-200">
                       <span className="text-blue-400">{selectedMsgIds.size}</span>
                       <span className="text-slate-400 font-normal ml-1">
-                        of {deletableFilteredMessages.length} selected
+                        of {filteredMessages.length} selected
                       </span>
                     </span>
                   </div>
@@ -1553,7 +1639,7 @@ export default function Messages() {
                     <button
                       type="button"
                       disabled={selectedMsgIds.size === 0}
-                      onClick={() => setConfirmDeleteModalOpen(true)}
+                      onClick={() => setDeleteTarget({ isBatch: true })}
                       className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 disabled:bg-red-600/30 text-white disabled:text-red-300/40 flex items-center gap-1.5 transition-all shadow-md shadow-red-600/30 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed active:scale-95"
                     >
                       <Trash2 size={13} />
@@ -1683,52 +1769,63 @@ export default function Messages() {
         })()}
       </div>
 
-      {/* Batch Delete Confirmation Modal */}
+      {/* WhatsApp-Style Delete Modal (Delete for everyone / Delete for me) */}
       <Modal
-        open={confirmDeleteModalOpen}
-        onClose={() => !isDeleting && setConfirmDeleteModalOpen(false)}
-        title="Delete Messages"
-        maxWidth="max-w-md"
-        footer={
-          <div className="flex items-center justify-end gap-2.5">
+        open={Boolean(deleteTarget)}
+        onClose={() => !isDeleting && setDeleteTarget(null)}
+        title={
+          deleteTarget?.isBatch
+            ? `Delete ${selectedMsgIds.size} ${selectedMsgIds.size === 1 ? 'message' : 'messages'}?`
+            : 'Delete message?'
+        }
+        maxWidth="max-w-sm"
+      >
+        <div className="space-y-4 py-1">
+          <p className="text-xs text-slate-300 leading-relaxed">
+            {targetCanDeleteForEveryone
+              ? 'You can delete this message for everyone or delete it only for yourself.'
+              : 'You can delete this message for yourself. Other participants will still be able to see it.'}
+          </p>
+
+          <div className="flex flex-col gap-2.5 pt-2">
+            {targetCanDeleteForEveryone && (
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteForEveryone}
+                className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-red-600/30 cursor-pointer active:scale-98"
+              >
+                {isDeleting ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Users size={15} />
+                )}
+                <span>Delete for everyone</span>
+              </button>
+            )}
+
             <button
               type="button"
               disabled={isDeleting}
-              onClick={() => setConfirmDeleteModalOpen(false)}
-              className="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+              onClick={handleDeleteForMe}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-blue-600/30 cursor-pointer active:scale-98"
+            >
+              {isDeleting ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <User size={15} />
+              )}
+              <span>Delete for me</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setDeleteTarget(null)}
+              className="w-full py-2 px-4 rounded-xl text-xs font-medium text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer text-center"
             >
               Cancel
             </button>
-            <button
-              type="button"
-              disabled={isDeleting}
-              onClick={handleConfirmBatchDelete}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 text-white flex items-center gap-2 transition-all shadow-md shadow-red-600/30 disabled:opacity-50 cursor-pointer active:scale-95"
-            >
-              {isDeleting ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Deleting...</span>
-                </>
-              ) : (
-                <>
-                  <Trash2 size={14} />
-                  <span>Delete Permanently</span>
-                </>
-              )}
-            </button>
-          </div>
-        }
-      >
-        <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
-          <AlertTriangle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-semibold text-red-200">
-              Are you sure you want to delete {selectedMsgIds.size} {selectedMsgIds.size === 1 ? 'message' : 'messages'}?
-            </p>
-            <p className="text-red-300/80 leading-relaxed">
-              This action will permanently delete {selectedMsgIds.size === 1 ? 'this message' : 'these selected messages'} for all users in this conversation. This action cannot be undone.
-            </p>
           </div>
         </div>
       </Modal>
