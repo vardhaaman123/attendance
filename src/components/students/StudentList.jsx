@@ -445,55 +445,44 @@ export default function StudentList() {
 
   return (
     <div className={`max-w-7xl mx-auto space-y-5 animate-fade-in ${!isTeacher && isDeleteMode ? "pb-24 sm:pb-28" : ""}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-              {isTeacher ? 'My Students' : 'Students'}
-            </h1>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live Sync Active
-            </span>
-            {isTeacher && teacherClass && (
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">
-                Assigned: Class {teacherClass}-{teacherSection}
-              </span>
-            )}
-            {isTeacher && classFilter === 'all' && (
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold">
-                Viewing All Classes
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Showing {filtered.length} of {students.length} students enrolled in college
-          </p>
+      {/* Header Actions */}
+      <div className="flex items-center justify-between gap-2 sm:gap-3 pb-0.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate tracking-tight">
+            {isTeacher ? 'My Students' : 'Students'}
+          </h1>
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="hidden xs:inline">Live Sync</span> Active
+          </span>
+          <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400 font-medium">
+            • {students.length} students
+          </span>
         </div>
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           {/* Live Refresh */}
           <button
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden disabled:opacity-60"
+            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden disabled:opacity-60"
             title="Live Refresh"
             aria-label="Live Refresh"
           >
-            <RefreshCw size={15} className={`flex-shrink-0 ${isRefreshing ? 'animate-spin text-blue-400' : 'text-slate-400 group-hover:text-blue-400 transition-colors'}`} />
-            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+            <RefreshCw size={14} className={`flex-shrink-0 ${isRefreshing ? 'animate-spin text-blue-400' : 'text-slate-400 group-hover:text-blue-400 transition-colors'}`} />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
               {isRefreshing ? 'Refreshing...' : 'Live Refresh'}
             </span>
           </button>
 
           {/* Import Sheet */}
           <label
-            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
             title="Import Excel"
             aria-label="Import Excel"
           >
-            <Upload size={15} className="flex-shrink-0 text-slate-400 group-hover:text-indigo-400 transition-colors" />
-            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+            <Upload size={14} className="flex-shrink-0 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
               Import Sheet
             </span>
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportSheet} />
@@ -503,12 +492,12 @@ export default function StudentList() {
           <button
             type="button"
             onClick={handleExportCSV}
-            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
             title="Export CSV"
             aria-label="Export CSV"
           >
-            <Download size={15} className="flex-shrink-0 text-slate-400 group-hover:text-emerald-400 transition-colors" />
-            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+            <Download size={14} className="flex-shrink-0 text-slate-400 group-hover:text-emerald-400 transition-colors" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
               Export CSV
             </span>
           </button>
@@ -525,7 +514,7 @@ export default function StudentList() {
                   setIsDeleteMode(true);
                 }
               }}
-              className={`group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl border shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden ${
+              className={`group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl border shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden ${
                 isDeleteMode
                   ? 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.3)] font-semibold'
                   : 'text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/20'
@@ -533,8 +522,8 @@ export default function StudentList() {
               title={isDeleteMode ? 'Cancel delete mode' : 'Select and delete specific students'}
               aria-label={isDeleteMode ? 'Cancel delete mode' : 'Delete students'}
             >
-              {isDeleteMode ? <X size={15} className="flex-shrink-0 text-rose-400" /> : <Trash2 size={15} className="flex-shrink-0 text-rose-400" />}
-              <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              {isDeleteMode ? <X size={14} className="flex-shrink-0 text-rose-400" /> : <Trash2 size={14} className="flex-shrink-0 text-rose-400" />}
+              <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
                 {isDeleteMode ? 'Cancel' : 'Delete Students'}
               </span>
             </button>
@@ -544,12 +533,12 @@ export default function StudentList() {
           <button
             type="button"
             onClick={() => setAddOpen(true)}
-            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-400/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.35)] hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-400/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.35)] hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
             title={isTeacher ? 'Enroll Student' : 'Add Student'}
             aria-label={isTeacher ? 'Enroll Student' : 'Add Student'}
           >
-            <Plus size={15} className="flex-shrink-0 text-white" />
-            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+            <Plus size={14} className="flex-shrink-0 text-white" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
               {isTeacher ? 'Enroll Student' : 'Add Student'}
             </span>
           </button>
