@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, Bell, Trash2, AlertTriangle, ArrowRight, Building2, ShieldCheck, Lock, Eye, EyeOff, AlertCircle, KeyRound, CheckCircle, LogOut } from 'lucide-react';
+import { Save, Bell, ArrowRight, Building2, ShieldCheck, Lock, Eye, EyeOff, AlertCircle, KeyRound, CheckCircle, LogOut } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +7,7 @@ import Modal from '../ui/Modal';
 import PasswordRequirements, { validatePasswordRules } from '../ui/PasswordRequirements';
 
 export default function Settings() {
-  const { settings, saveSettings, resetAllSchoolData, addToast } = useApp();
+  const { settings, saveSettings, addToast } = useApp();
   const { logout, user, verifyAdminPassword, changeAdminPassword, updateAdminProfile } = useAuth();
   const navigate = useNavigate();
 
@@ -135,15 +135,6 @@ export default function Settings() {
       emailjsPublicKey: settings.emailjsPublicKey || f.emailjsPublicKey,
     }));
   }, [settings]);
-
-  const [resetModalOpen, setResetModalOpen] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [confirmAdminPassword, setConfirmAdminPassword] = useState('');
-  const [showAdminPw, setShowAdminPw] = useState(false);
-  const [showConfirmAdminPw, setShowConfirmAdminPw] = useState(false);
-  const [resetError, setResetError] = useState('');
-  const [resetting, setResetting] = useState(false);
-
   // Admin password change states
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -222,60 +213,6 @@ export default function Settings() {
     });
 
     addToast('Settings saved successfully.', 'success');
-  };
-
-  const handleOpenResetModal = () => {
-    setAdminPassword('');
-    setConfirmAdminPassword('');
-    setResetError('');
-    setShowAdminPw(false);
-    setShowConfirmAdminPw(false);
-    setResetModalOpen(true);
-  };
-
-  const handleConfirmResetWithPassword = async (e) => {
-    if (e) e.preventDefault();
-    setResetError('');
-
-    if (!adminPassword.trim()) {
-      setResetError('Please enter your administrator password.');
-      return;
-    }
-
-    if (!confirmAdminPassword.trim()) {
-      setResetError('Please re-enter your password to confirm.');
-      return;
-    }
-
-    if (adminPassword !== confirmAdminPassword) {
-      setResetError('Passwords do not match. Please verify both fields.');
-      return;
-    }
-
-    setResetting(true);
-    try {
-      const verifyRes = await verifyAdminPassword(adminPassword);
-      if (!verifyRes?.success) {
-        setResetError(verifyRes?.error || 'Incorrect administrator password.');
-        setResetting(false);
-        return;
-      }
-
-      const ok = await resetAllSchoolData();
-      if (ok) {
-        addToast('All school data has been successfully reset from Firebase.', 'success');
-        setResetModalOpen(false);
-        setAdminPassword('');
-        setConfirmAdminPassword('');
-      } else {
-        setResetError('Error resetting cloud data. Please check your connection.');
-      }
-    } catch (err) {
-      console.error('Error during data reset:', err);
-      setResetError('An error occurred during reset. Please try again.');
-    } finally {
-      setResetting(false);
-    }
   };
 
   return (
@@ -676,24 +613,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Danger zone */}
-      <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-rose-200/70 dark:border-rose-500/20 p-5 sm:p-6 backdrop-blur-xl shadow-sm dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.15)]">
-            <AlertTriangle size={16} />
-          </div>
-          <h2 className="text-sm font-bold text-rose-600 dark:text-rose-400">Danger Zone</h2>
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-slate-900 dark:text-white">Reset All Application Data</p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Clear all students, teachers, attendance logs, and custom preferences back to defaults.</p>
-          </div>
-          <button onClick={handleOpenResetModal} className="btn-danger shrink-0">
-            <Trash2 size={14} /> Reset Data
-          </button>
-        </div>
-      </div>
 
       {/* Institution Details Password Confirmation Modal */}
       <Modal
@@ -762,114 +681,6 @@ export default function Settings() {
             >
               <ShieldCheck size={14} />
               {savingInstitution ? 'Verifying & Saving...' : 'Verify & Save Changes'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Reset Confirmation Modal with Password and Confirm Password */}
-      <Modal
-        open={resetModalOpen}
-        onClose={() => !resetting && setResetModalOpen(false)}
-        title="Confirm Application Data Reset"
-        maxWidth="max-w-lg"
-      >
-        <form onSubmit={handleConfirmResetWithPassword} className="space-y-4">
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 dark:text-rose-300 text-xs flex items-start gap-2.5">
-            <AlertTriangle size={18} className="text-rose-500 flex-shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold text-rose-600 dark:text-rose-200">Irreversible Action Warning</p>
-              <p className="leading-relaxed">
-                This will permanently delete <strong>all students, teachers, attendance records, exam marks, and messages</strong> from Firebase Cloud.
-              </p>
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-600 dark:text-slate-400">
-            For security, please enter and confirm your <strong>Administrator Password</strong> to proceed with resetting data.
-          </p>
-
-          {/* Admin Password Field */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Admin Password *
-            </label>
-            <div className="relative">
-              <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
-                type={showAdminPw ? 'text' : 'password'}
-                value={adminPassword}
-                onChange={(e) => { setAdminPassword(e.target.value); setResetError(''); }}
-                placeholder="Enter admin password"
-                className="input-field pl-10 pr-10 w-full"
-                disabled={resetting}
-                autoFocus
-              />
-              <button
-                type="button"
-                onClick={() => setShowAdminPw((v) => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-              >
-                {showAdminPw ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Confirm Admin Password Field */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Confirm Admin Password *
-            </label>
-            <div className="relative">
-              <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
-                type={showConfirmAdminPw ? 'text' : 'password'}
-                value={confirmAdminPassword}
-                onChange={(e) => { setConfirmAdminPassword(e.target.value); setResetError(''); }}
-                placeholder="Re-enter admin password"
-                className="input-field pl-10 pr-10 w-full"
-                disabled={resetting}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmAdminPw((v) => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
-              >
-                {showConfirmAdminPw ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-            {adminPassword && confirmAdminPassword && (
-              <p className={`text-[11px] mt-1.5 font-semibold ${adminPassword === confirmAdminPassword ? 'text-emerald-500' : 'text-rose-400'}`}>
-                {adminPassword === confirmAdminPassword ? '✓ Passwords match' : '✗ Passwords do not match'}
-              </p>
-            )}
-          </div>
-
-          {/* Error Message */}
-          {resetError && (
-            <div className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-2.5 text-xs text-rose-500 dark:text-rose-400">
-              <AlertCircle size={14} className="flex-shrink-0" />
-              <span>{resetError}</span>
-            </div>
-          )}
-
-          {/* Action buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-white/10">
-            <button
-              type="button"
-              disabled={resetting}
-              onClick={() => setResetModalOpen(false)}
-              className="btn-secondary text-xs"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={resetting || !adminPassword.trim() || !confirmAdminPassword.trim()}
-              className="btn-danger text-xs disabled:opacity-50"
-            >
-              <Trash2 size={13} />
-              {resetting ? 'Resetting Cloud Data...' : 'Confirm & Wipe All Data'}
             </button>
           </div>
         </form>
