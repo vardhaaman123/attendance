@@ -913,23 +913,23 @@ export default function TeacherList() {
         </div>
       </div>
 
-      {/* Filters: 50% Search Bar & 50% Class / Section Filters */}
+      {/* Filters: 30% Search Bar & 70% Class / Section Filters */}
       <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
         <div className="flex items-center gap-1.5 sm:gap-2.5 w-full">
-          {/* 70% Search Bar */}
-          <div className="w-1/2 min-w-0 relative">
+          {/* 30% Search Bar */}
+          <div className="w-[30%] min-w-0 relative">
             <Search size={15} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search teachers..."
+              placeholder="Search..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="input-field pl-8 sm:pl-10 py-2 sm:py-2.5 text-xs sm:text-sm w-full truncate"
             />
           </div>
 
-          {/* 30% Dropdown Selectors */}
-          <div className="w-1/2 min-w-0 flex items-center gap-1.5 sm:gap-2">
+          {/* 70% Dropdown Selectors */}
+          <div className="w-[70%] min-w-0 flex items-center gap-1.5 sm:gap-2">
             <div className="flex-1 min-w-0">
               <CustomSelect
                 value={classFilter}
