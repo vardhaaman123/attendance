@@ -45,10 +45,11 @@ function SeedInitializer({ children }) {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#070A12]">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-        <p className="text-xs text-slate-400">Loading Attendify...</p>
+    <div className="min-h-screen flex items-center justify-center bg-[#06080E] relative overflow-hidden select-none">
+      <div className="absolute w-96 h-96 rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
+      <div className="relative px-7 py-6 rounded-3xl bg-[#0B0F1A]/85 backdrop-blur-2xl border border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.15)] flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-400 rounded-full animate-spin" />
+        <p className="text-xs font-medium text-slate-300 tracking-wide">Loading Attendify...</p>
       </div>
     </div>
   );

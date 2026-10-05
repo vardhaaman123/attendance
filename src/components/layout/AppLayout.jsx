@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar, MobileDrawer } from './Sidebar';
 import Header from './Header';
 import ToastContainer from '../ui/ToastContainer';
+import AnimatedBackground from '../ui/AnimatedBackground';
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -44,17 +45,20 @@ export default function AppLayout() {
   }, []);
 
   return (
-    <div className="flex h-dvh bg-slate-50 dark:bg-[#070A12] overflow-hidden text-slate-900 dark:text-slate-100 max-w-full">
+    <div className="relative flex h-dvh bg-[#06080E] overflow-hidden text-slate-100 max-w-full selection:bg-blue-500/30 selection:text-white">
+      {/* Liquid Glass Ambient Background Canvas */}
+      <AnimatedBackground />
+
       {/* Desktop Sidebar */}
       <Sidebar collapsed={collapsed} onToggle={handleToggleCollapse} />
 
       {/* Mobile Drawer */}
       <MobileDrawer open={mobileOpen} onClose={() => setMobileOpen(false)} />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden min-h-0">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden min-h-0 relative z-10">
         <Header onMenuOpen={() => setMobileOpen(true)} />
-        <main className={`flex-1 min-h-0 w-full max-w-full min-w-0 ${location.pathname === '/messages' ? 'overflow-hidden p-0 flex flex-col' : 'overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:py-3.5 lg:px-6'} animate-fade-in`}>
+        <main className={`flex-1 min-h-0 w-full max-w-full min-w-0 ${location.pathname === '/messages' ? 'overflow-hidden p-0 flex flex-col' : 'overflow-y-auto overflow-x-hidden p-3 sm:p-5 lg:py-4 lg:px-7'} animate-fade-in`}>
           <Outlet />
         </main>
       </div>

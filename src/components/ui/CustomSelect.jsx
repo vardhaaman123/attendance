@@ -105,7 +105,7 @@ export default function CustomSelect({
         className={`flex items-center justify-between gap-2 text-left cursor-pointer transition-all duration-200 select-none ${
           className
             ? className
-            : 'w-full px-4 py-2.5 bg-slate-50 dark:bg-[#111726] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white rounded-xl text-sm'
+            : 'w-full px-4 py-2.5 bg-white/80 dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 text-slate-900 dark:text-white rounded-xl sm:rounded-2xl text-sm backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(0,0,0,0.04),0_1px_0_rgba(255,255,255,0.06)]'
         } ${
           open
             ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
@@ -129,7 +129,7 @@ export default function CustomSelect({
       {/* Advanced Dark Theme Dropdown Menu */}
       {open && (
         <div
-          className={`absolute left-0 z-[100] w-full min-w-[160px] bg-white dark:bg-[#0B0F19] border border-slate-200 dark:border-white/15 rounded-xl shadow-2xl dark:shadow-[0_16px_50px_rgba(0,0,0,0.9)] backdrop-blur-2xl py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150 ${
+          className={`absolute left-0 z-[100] w-full min-w-[160px] bg-[#0B0F1A]/92 border border-white/15 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-3xl py-1.5 overflow-hidden animate-popover-in ${
             dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
           }`}
           style={{ minWidth: '100%' }}
@@ -148,8 +148,8 @@ export default function CustomSelect({
                     onClick={() => handleSelect(opt.value)}
                     className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-150 text-left ${
                       isSelected
-                        ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 font-semibold shadow-[inset_0_0_0_1px_rgba(59,130,246,0.25)]'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.08] hover:text-slate-900 dark:hover:text-white'
+                        ? 'bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+                        : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                     } ${opt.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <span className="truncate">{opt.label}</span>

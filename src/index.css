@@ -15,10 +15,9 @@
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
-    /* Use dvh (dynamic viewport height) so mobile browser chrome is correctly excluded.
-       Falls back to 100% for older browsers. */
     height: 100%;
     height: 100dvh;
+    background-color: #06080E;
   }
 
   #root {
@@ -30,7 +29,8 @@
   }
 
   body {
-    @apply font-sans bg-[#070A12] text-slate-100 antialiased;
+    @apply font-sans bg-[#06080E] text-slate-100 antialiased;
+    letter-spacing: -0.011em;
   }
 
   img, video {
@@ -42,6 +42,7 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Sleek custom scrollbars */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -52,11 +53,20 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 rounded-full;
+    background: rgba(148, 163, 184, 0.25);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.45);
   }
 
   .dark ::-webkit-scrollbar-thumb {
-    @apply bg-slate-600;
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.28);
   }
 
   .dark select, select {
@@ -64,11 +74,21 @@
   }
 }
 
+/* Accessibility: Respect Reduced Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Hide all scrollbars ONLY on mobile view for a modern, native app-like experience */
 @media (max-width: 768px) {
   * {
-    -ms-overflow-style: none !important; /* IE and Edge */
-    scrollbar-width: none !important;    /* Firefox */
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
   }
 
   ::-webkit-scrollbar,
@@ -80,13 +100,7 @@
   }
 }
 
-/* ── Mobile Safe-Area & DVH Utilities ──
-   These ensure the app shell and message bar respect iPhone notch /
-   home-indicator areas and handle the mobile keyboard correctly. */
-
-/* Safe-area padding for the bottom input bar on iOS, Android, and mobile devices.
-   Ensures healthy bottom padding (at least 14px / 0.875rem on mobile, 16px / 1rem on desktop)
-   plus any device safe-area-inset-bottom (e.g. iPhone home indicator / Android navigation bar). */
+/* Safe-area utilities for notched phones */
 .pb-safe {
   padding-bottom: max(0.875rem, calc(0.75rem + env(safe-area-inset-bottom, 0px))) !important;
 }
@@ -97,8 +111,6 @@
   }
 }
 
-/* App shell uses dynamic viewport height so the mobile browser
-   address bar / bottom chrome does NOT eat into the layout */
 .h-dvh {
   height: 100vh;
   height: 100dvh;
@@ -110,7 +122,6 @@
   }
 }
 
-/* Prevent horizontal scroll on every page on mobile */
 @media (max-width: 768px) {
   html, body, #root {
     max-width: 100vw;
@@ -118,11 +129,6 @@
   }
 }
 
-/* When the soft keyboard opens on mobile (iOS/Android), browsers shrink
-   the visual viewport.  Using dvh on the app shell means the layout
-   automatically adapts rather than getting clipped. */
-
-/* Utility to hide scrollbars on specific elements if needed */
 .no-scrollbar::-webkit-scrollbar {
   display: none !important;
 }
@@ -136,95 +142,140 @@
   word-break: break-word;
 }
 
+/* ── Apple Liquid Glass Design Language ── */
 @layer components {
+  /* Liquid Glass Surface Container */
+  .glass-surface {
+    @apply bg-white/75 dark:bg-[#0B0F1A]/70 backdrop-blur-2xl border border-white/60 dark:border-white/10
+           shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)];
+  }
+
+  /* Liquid Glass Cards */
   .card {
-    @apply bg-white dark:bg-[#0B0F19]/80 rounded-2xl shadow-card dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] border border-slate-100 dark:border-white/10 dark:backdrop-blur-xl p-5 sm:p-6 transition-all;
+    @apply bg-white/80 dark:bg-[#0B0F1A]/70 rounded-2xl sm:rounded-3xl shadow-[0_4px_24px_rgba(0,0,0,0.05)]
+           dark:shadow-[0_8px_32px_rgba(0,0,0,0.45)] border border-slate-200/80 dark:border-white/10
+           backdrop-blur-xl p-5 sm:p-6 transition-all duration-200;
   }
 
+  /* Liquid Glass Primary Button */
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl
-           active:scale-95 transition-all duration-200 shadow-[0_0_15px_rgba(59,130,246,0.3)] text-sm cursor-pointer;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500
+           text-white font-medium rounded-xl sm:rounded-2xl
+           shadow-[0_2px_14px_rgba(37,99,235,0.35),inset_0_1px_0_rgba(255,255,255,0.25)]
+           border border-blue-400/30 hover:border-blue-300/40
+           active:scale-[0.97] transition-all duration-200 text-sm cursor-pointer select-none;
   }
 
+  /* Liquid Glass Secondary Button */
   .btn-secondary {
-    @apply inline-flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-[#111726] text-slate-800 dark:text-slate-200
-           font-semibold rounded-xl border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-[#161F34]
-           dark:hover:text-white active:scale-95 transition-all duration-200 text-sm cursor-pointer;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white/80 dark:bg-white/[0.06]
+           text-slate-800 dark:text-slate-200 font-medium rounded-xl sm:rounded-2xl
+           border border-slate-200/80 dark:border-white/10 backdrop-blur-xl
+           hover:bg-slate-100/90 dark:hover:bg-white/[0.12] dark:hover:text-white dark:hover:border-white/20
+           shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.08)]
+           active:scale-[0.97] transition-all duration-200 text-sm cursor-pointer select-none;
   }
 
+  /* Liquid Glass Danger Button */
   .btn-danger {
-    @apply inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-xl
-           active:scale-95 transition-all duration-200 shadow-[0_0_15px_rgba(239,68,68,0.2)] text-sm cursor-pointer;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-500
+           text-white font-medium rounded-xl sm:rounded-2xl
+           shadow-[0_2px_14px_rgba(225,29,72,0.35),inset_0_1px_0_rgba(255,255,255,0.25)]
+           border border-rose-400/30 hover:border-rose-300/40
+           active:scale-[0.97] transition-all duration-200 text-sm cursor-pointer select-none;
   }
 
+  /* Liquid Glass Success Button */
   .btn-success {
-    @apply inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl
-           active:scale-95 transition-all duration-200 shadow-[0_0_15px_rgba(16,185,129,0.2)] text-sm cursor-pointer;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500
+           text-white font-medium rounded-xl sm:rounded-2xl
+           shadow-[0_2px_14px_rgba(16,185,129,0.35),inset_0_1px_0_rgba(255,255,255,0.25)]
+           border border-emerald-400/30 hover:border-emerald-300/40
+           active:scale-[0.97] transition-all duration-200 text-sm cursor-pointer select-none;
   }
 
+  /* Floating Liquid Glass Controls */
+  .btn-glass {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white/10 dark:bg-white/[0.07]
+           backdrop-blur-xl text-slate-900 dark:text-white font-medium rounded-xl sm:rounded-2xl
+           border border-white/20 dark:border-white/12
+           shadow-[0_4px_16px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.2)]
+           hover:bg-white/20 dark:hover:bg-white/[0.14] hover:border-white/30
+           active:scale-[0.97] transition-all duration-200 text-sm cursor-pointer select-none;
+  }
+
+  /* Liquid Glass Input */
   .input-field {
-    @apply w-full px-4 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl text-sm
-           bg-white dark:bg-[#111726] text-slate-900 dark:text-white
+    @apply w-full px-4 py-2.5 border border-slate-200 dark:border-white/10 rounded-xl sm:rounded-2xl text-sm
+           bg-white/80 dark:bg-[#0B0F1A]/80 backdrop-blur-xl text-slate-900 dark:text-white
            placeholder:text-slate-400 dark:placeholder:text-slate-500
-           focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500
-           dark:focus:border-blue-500 dark:focus:ring-blue-500/30 transition-all;
+           shadow-[inset_0_1px_2px_rgba(0,0,0,0.04),0_1px_0_rgba(255,255,255,0.05)]
+           focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-500 dark:focus:border-blue-400
+           focus:bg-white dark:focus:bg-[#0E1422] transition-all duration-200;
   }
 
+  /* Badges */
   .badge-present {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
-           bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border dark:border-emerald-500/20;
+           bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 backdrop-blur-md;
   }
 
   .badge-absent {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
-           bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400 dark:border dark:border-rose-500/20;
+           bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 backdrop-blur-md;
   }
 
   .badge-late {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold
-           bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 dark:border dark:border-amber-500/20;
+           bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/25 backdrop-blur-md;
   }
 
+  /* Navigation Items: Liquid Glass Floating Pill */
   .nav-item {
-    @apply flex items-center gap-3 px-4 h-[44px] rounded-[12px] text-[15px] font-medium text-slate-600
-           dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900
-           dark:hover:text-white transition-all duration-200 cursor-pointer;
+    @apply flex items-center gap-3 px-3.5 h-[42px] rounded-xl sm:rounded-2xl text-[14px] font-medium
+           text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-white/[0.06]
+           hover:text-slate-900 dark:hover:text-white transition-all duration-200 cursor-pointer;
   }
 
   .nav-item.active {
-    @apply bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 font-semibold dark:border dark:border-blue-500/30 dark:shadow-[0_0_15px_rgba(59,130,246,0.15)];
+    @apply bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold
+           border border-blue-500/25 shadow-[0_2px_12px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)];
   }
 
+  /* Status selection buttons */
   .status-btn {
     @apply flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border
-           transition-all duration-150 cursor-pointer select-none;
+           transition-all duration-150 cursor-pointer select-none backdrop-blur-md;
   }
 
   .status-btn-present {
-    @apply border-transparent bg-slate-100 dark:bg-[#111726] text-slate-500 dark:text-slate-400
-           hover:bg-emerald-50 dark:hover:bg-emerald-500/10 hover:border-emerald-200 dark:hover:border-emerald-500/30 hover:text-emerald-700 dark:hover:text-emerald-400;
+    @apply border-transparent bg-slate-100/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400
+           hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500 dark:hover:text-emerald-400;
   }
 
   .status-btn-present.selected {
-    @apply bg-emerald-100 dark:bg-emerald-500/20 border-emerald-400 dark:border-emerald-400/40 text-emerald-700 dark:text-emerald-300 dark:shadow-[0_0_10px_rgba(16,185,129,0.2)];
+    @apply bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-300
+           shadow-[0_0_12px_rgba(16,185,129,0.25),inset_0_1px_0_rgba(255,255,255,0.1)];
   }
 
   .status-btn-absent {
-    @apply border-transparent bg-slate-100 dark:bg-[#111726] text-slate-500 dark:text-slate-400
-           hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:border-rose-200 dark:hover:border-rose-500/30 hover:text-rose-700 dark:hover:text-rose-400;
+    @apply border-transparent bg-slate-100/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400
+           hover:bg-rose-500/10 hover:border-rose-500/30 hover:text-rose-500 dark:hover:text-rose-400;
   }
 
   .status-btn-absent.selected {
-    @apply bg-rose-100 dark:bg-rose-500/20 border-rose-400 dark:border-rose-400/40 text-rose-700 dark:text-rose-300 dark:shadow-[0_0_10px_rgba(244,63,94,0.2)];
+    @apply bg-rose-500/15 border-rose-500/40 text-rose-600 dark:text-rose-300
+           shadow-[0_0_12px_rgba(244,63,94,0.25),inset_0_1px_0_rgba(255,255,255,0.1)];
   }
 
   .status-btn-late {
-    @apply border-transparent bg-slate-100 dark:bg-[#111726] text-slate-500 dark:text-slate-400
-           hover:bg-amber-50 dark:hover:bg-amber-500/10 hover:border-amber-200 dark:hover:border-amber-500/30 hover:text-amber-700 dark:hover:text-amber-400;
+    @apply border-transparent bg-slate-100/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400
+           hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-500 dark:hover:text-amber-400;
   }
 
   .status-btn-late.selected {
-    @apply bg-amber-100 dark:bg-amber-500/20 border-amber-400 dark:border-amber-400/40 text-amber-700 dark:text-amber-300 dark:shadow-[0_0_10px_rgba(245,158,11,0.2)];
+    @apply bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-300
+           shadow-[0_0_12px_rgba(245,158,11,0.25),inset_0_1px_0_rgba(255,255,255,0.1)];
   }
 }
 
@@ -235,7 +286,6 @@
   body { background: white !important; color: black !important; }
   .card { box-shadow: none !important; border: 1px solid #ccc !important; }
 
-  /* Ensure printable-slip is fully visible and not clipped */
   #printable-slip {
     border: 2px solid #059669 !important;
     background: white !important;
@@ -251,4 +301,3 @@
 }
 
 .print-only { display: none; }
-
