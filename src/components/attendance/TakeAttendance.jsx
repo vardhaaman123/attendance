@@ -387,22 +387,14 @@ export default function TakeAttendance() {
       {/* ── SCREEN DASHBOARD UI (HIDDEN ON PRINT) ── */}
       <div className="no-print max-w-7xl mx-auto space-y-4 sm:space-y-5 animate-fade-in pb-10">
       {/* ── 1. TOP HEADER ACTIONS ── */}
-      <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-        {isTeacher ? (
+      {isTeacher && (
+        <div className="flex items-center gap-2 pt-1 flex-wrap">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs">
             <ShieldCheck size={14} className="text-blue-400 flex-shrink-0" />
             <span>Faculty Mode: <strong>{user?.name}</strong>{teacherAssignedClass && teacherAssignedSection ? ` · Assigned to Class ${teacherAssignedClass}-${teacherAssignedSection}` : ''}</span>
           </div>
-        ) : <div />}
-        <button
-          onClick={handlePrint}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-[#161F34] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-xs transition-colors no-print cursor-pointer"
-          title="Print Attendance Sheet"
-        >
-          <Printer size={14} />
-          <span className="hidden sm:inline">Print</span>
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* ── 2. ATTENDANCE CONTROL BAR ── */}
       <div className="bg-white dark:bg-[#0B0F19]/80 rounded-2xl border border-slate-200 dark:border-white/10 p-2.5 sm:p-5 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl relative z-30">
@@ -456,12 +448,24 @@ export default function TakeAttendance() {
             </div>
           </div>
 
-          {/* Right: Date control */}
-          <div className="flex items-center gap-2 pt-2 md:pt-0 border-t border-slate-100 dark:border-white/5 md:border-t-0 w-full md:w-auto">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Date</span>
-            <div className="flex items-center gap-1.5 flex-1 md:flex-initial">
-              <DateNav date={date} onChange={handleDateChange} />
+          {/* Right: Date control & Print Button */}
+          <div className="flex items-center justify-between md:justify-end gap-2 sm:gap-3 pt-2 md:pt-0 border-t border-slate-100 dark:border-white/5 md:border-t-0 w-full md:w-auto flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Date</span>
+              <div className="flex items-center gap-1.5 flex-1 md:flex-initial">
+                <DateNav date={date} onChange={handleDateChange} />
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-[#161F34] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-xs transition-all no-print cursor-pointer active:scale-95 flex-shrink-0"
+              title="Print Attendance Sheet"
+            >
+              <Printer size={14} className="text-blue-500 dark:text-blue-400" />
+              <span>Print</span>
+            </button>
           </div>
         </div>
       </div>
