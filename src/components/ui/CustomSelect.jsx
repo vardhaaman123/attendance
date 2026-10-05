@@ -20,6 +20,7 @@ export default function CustomSelect({
   disabled = false,
   className = '',
   icon: LeftIcon,
+  align = 'left',
 }) {
   const [open, setOpen] = useState(false);
   const [dropUp, setDropUp] = useState(false);
@@ -130,7 +131,7 @@ export default function CustomSelect({
   return (
     <div
       ref={containerRef}
-      className={`relative ${isAutoWidth ? 'inline-block w-auto min-w-[90px]' : 'w-full'} ${open ? 'z-50' : 'z-10'}`}
+      className={`relative ${isAutoWidth ? 'inline-block w-auto' : 'w-full'} ${open ? 'z-50' : 'z-10'}`}
     >
       {/* Trigger Button */}
       <button
@@ -147,7 +148,7 @@ export default function CustomSelect({
             : 'hover:border-slate-300 dark:hover:border-white/20'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <div className="flex items-center gap-1.5 truncate min-w-0 flex-1">
+        <div className={`flex items-center gap-1.5 truncate min-w-0 ${isAutoWidth ? '' : 'flex-1'}`}>
           {LeftIcon && <LeftIcon size={14} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />}
           <span className={`hidden sm:inline truncate text-xs sm:text-sm font-medium ${selectedOption ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>
             {triggerLabel}
@@ -176,10 +177,10 @@ export default function CustomSelect({
 
           {/* Opaque Dropdown Container */}
           <div
-            className={`absolute left-0 z-[100] w-full min-w-[170px] bg-[#0E1424] border border-white/20 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 overflow-hidden animate-popover-in ${
+            className={`absolute ${align === 'right' ? 'right-0' : 'left-0'} z-[100] min-w-[160px] bg-[#0E1424] border border-white/20 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 overflow-hidden animate-popover-in ${
               dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
             }`}
-            style={{ minWidth: '100%' }}
+            style={{ minWidth: isAutoWidth ? 'max(100%, 150px)' : '100%' }}
           >
             <div className="max-h-60 overflow-y-auto custom-scrollbar p-1.5 space-y-1 bg-[#0E1424]">
               {parsedOptions.length === 0 ? (

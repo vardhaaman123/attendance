@@ -575,50 +575,48 @@ export default function StudentList() {
         </div>
       )}
 
-      {/* Filters: 30% Search Bar & 70% Class / Section Selectors */}
+      {/* Filters: Search Bar & Class / Section Selectors */}
       <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
         <div className="flex items-center gap-1.5 sm:gap-2.5 w-full">
-          {/* 30% Search Bar */}
-          <div className="w-[30%] min-w-0 relative">
+          {/* Search Bar - fills available space */}
+          <div className="flex-1 min-w-0 relative">
             <Search size={15} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search students..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="input-field pl-8 sm:pl-10 py-2 sm:py-2.5 text-xs sm:text-sm w-full truncate"
             />
           </div>
 
-          {/* 70% Dropdown Selectors */}
-          <div className="w-[70%] min-w-0 flex items-center gap-1.5 sm:gap-2">
-            <div className="flex-1 min-w-0">
-              <CustomSelect
-                value={classFilter}
-                onChange={e => setClassFilter(e.target.value)}
-                className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
-              >
-                <option value="all">Classes ({students.length})</option>
-                {availableClasses.map(c => {
-                  const count = students.filter(s => String(s.class) === String(c)).length;
-                  return (
-                    <option key={c} value={c}>
-                      Class {c} ({count}) {isTeacher && c === teacherClass ? '★' : ''}
-                    </option>
-                  );
-                })}
-              </CustomSelect>
-            </div>
-            <div className="flex-1 min-w-0">
-              <CustomSelect
-                value={sectionFilter}
-                onChange={e => setSectionFilter(e.target.value)}
-                className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
-              >
-                <option value="all">Section</option>
-                {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
-              </CustomSelect>
-            </div>
+          {/* Dropdown Selectors - compact, content-fitting */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            <CustomSelect
+              value={classFilter}
+              onChange={e => setClassFilter(e.target.value)}
+              className="input-field w-auto py-2 sm:py-2.5 px-2.5 sm:px-3.5 text-xs sm:text-sm whitespace-nowrap"
+            >
+              <option value="all">Classes ({students.length})</option>
+              {availableClasses.map(c => {
+                const count = students.filter(s => String(s.class) === String(c)).length;
+                return (
+                  <option key={c} value={c}>
+                    Class {c} ({count}) {isTeacher && c === teacherClass ? '★' : ''}
+                  </option>
+                );
+              })}
+            </CustomSelect>
+
+            <CustomSelect
+              value={sectionFilter}
+              onChange={e => setSectionFilter(e.target.value)}
+              className="input-field w-auto py-2 sm:py-2.5 px-2.5 sm:px-3.5 text-xs sm:text-sm whitespace-nowrap"
+              align="right"
+            >
+              <option value="all">Section</option>
+              {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
+            </CustomSelect>
             {!isTeacher && classFilter !== 'all' && (
               <button
                 type="button"
