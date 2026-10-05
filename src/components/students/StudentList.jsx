@@ -491,38 +491,26 @@ export default function StudentList() {
             <span className="hidden sm:inline">Export</span>
           </button>
           {!isTeacher && (
-            <>
-              <button
-                type="button"
-                onClick={() => {
-                  if (isDeleteMode) {
-                    setIsDeleteMode(false);
-                    setSelectedStudentIds([]);
-                  } else {
-                    setIsDeleteMode(true);
-                  }
-                }}
-                className={`btn-secondary cursor-pointer transition-all ${
-                  isDeleteMode
-                    ? 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-sm shadow-rose-500/20 ring-1 ring-rose-500/30 font-semibold'
-                    : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border-rose-500/20'
-                }`}
-                title={isDeleteMode ? 'Cancel delete mode' : 'Select and delete specific students'}
-              >
-                {isDeleteMode ? <X size={15} /> : <Trash2 size={15} />}
-                <span>{isDeleteMode ? 'Cancel' : 'Delete'}</span>
-              </button>
-              {!isDeleteMode && (
-                <button
-                  type="button"
-                  onClick={() => setDeleteClassModalOpen(true)}
-                  className="btn-secondary text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border-slate-200 dark:border-white/10 cursor-pointer"
-                  title="Delete an entire class or all classes"
-                >
-                  <span className="hidden sm:inline">Delete Class</span>
-                </button>
-              )}
-            </>
+            <button
+              type="button"
+              onClick={() => {
+                if (isDeleteMode) {
+                  setIsDeleteMode(false);
+                  setSelectedStudentIds([]);
+                } else {
+                  setIsDeleteMode(true);
+                }
+              }}
+              className={`btn-secondary cursor-pointer transition-all ${
+                isDeleteMode
+                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-sm shadow-rose-500/20 ring-1 ring-rose-500/30 font-semibold'
+                  : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border-rose-500/20'
+              }`}
+              title={isDeleteMode ? 'Cancel delete mode' : 'Select and delete specific students'}
+              aria-label={isDeleteMode ? 'Cancel delete mode' : 'Delete students'}
+            >
+              {isDeleteMode ? <X size={15} /> : <Trash2 size={15} />}
+            </button>
           )}
           <button onClick={() => setAddOpen(true)} className="btn-primary">
             <Plus size={15} /> {isTeacher ? 'Enroll Student' : 'Add Student'}
