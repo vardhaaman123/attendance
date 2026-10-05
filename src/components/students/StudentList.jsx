@@ -447,18 +447,9 @@ export default function StudentList() {
     <div className={`max-w-7xl mx-auto space-y-5 animate-fade-in ${!isTeacher && isDeleteMode ? "pb-24 sm:pb-28" : ""}`}>
       {/* Header Actions */}
       <div className="flex items-center justify-between gap-2 sm:gap-3 pb-0.5">
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate tracking-tight">
-            {isTeacher ? 'My Students' : 'Students'}
-          </h1>
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="hidden xs:inline">Live Sync</span> Active
-          </span>
-          <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400 font-medium">
-            • {students.length} students
-          </span>
-        </div>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+          {isTeacher ? 'My Students' : 'Students'}
+        </h1>
         <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           {/* Live Refresh */}
           <button

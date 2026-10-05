@@ -8,10 +8,12 @@ import {
   Users,
   Download,
   Upload,
+  BookOpen,
   Layers,
   Mail,
   Eye,
   MoreVertical,
+  BookMarked,
   Key,
   RefreshCw,
   CheckSquare,
@@ -803,18 +805,9 @@ export default function TeacherList() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-3.5 sm:space-y-6 animate-fade-in">
-      {/* ── UNIFIED HEADER: Title & Action Options in One Row ── */}
+      {/* ── HEADER: Clean Title & Action Options ── */}
       <div className="flex items-center justify-between gap-2 sm:gap-3 pb-0.5">
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate tracking-tight">Teachers</h1>
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="hidden xs:inline">Live Sync</span> Active
-          </span>
-          <span className="hidden md:inline text-xs text-slate-500 dark:text-slate-400 font-medium">
-            • {teachers.length} faculty members
-          </span>
-        </div>
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Teachers</h1>
 
         {/* Action Option Buttons (Adjusted Size, Expandable on Hover) */}
         <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
@@ -893,6 +886,59 @@ export default function TeacherList() {
               Add Teacher
             </span>
           </button>
+        </div>
+      </div>
+
+      {/* ── SUMMARY STATS (4 BLOCKS) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3.5">
+        {/* Total Teachers */}
+        <div className="rounded-xl sm:rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-2.5 sm:p-3.5 backdrop-blur-xl shadow-xs sm:shadow-[0_4px_25px_rgba(0,0,0,0.3)] flex items-center gap-2.5 sm:gap-3">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+            <GraduationCap size={16} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">{teachers.length}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 uppercase font-semibold truncate mt-0.5">Teachers</p>
+          </div>
+        </div>
+
+        {/* Classes Assigned */}
+        <div className="rounded-xl sm:rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-2.5 sm:p-3.5 backdrop-blur-xl shadow-xs sm:shadow-[0_4px_25px_rgba(0,0,0,0.3)] flex items-center gap-2.5 sm:gap-3">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+            <BookOpen size={16} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
+              {new Set(teachers.map(t => t.class)).size}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 uppercase font-semibold truncate mt-0.5">Classes</p>
+          </div>
+        </div>
+
+        {/* Divisions Covered */}
+        <div className="rounded-xl sm:rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-2.5 sm:p-3.5 backdrop-blur-xl shadow-xs sm:shadow-[0_4px_25px_rgba(0,0,0,0.3)] flex items-center gap-2.5 sm:gap-3">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+            <Layers size={16} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
+              {new Set(teachers.map(t => `${t.class}-${t.section}`)).size}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 uppercase font-semibold truncate mt-0.5">Divisions</p>
+          </div>
+        </div>
+
+        {/* Subjects Taught */}
+        <div className="rounded-xl sm:rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-2.5 sm:p-3.5 backdrop-blur-xl shadow-xs sm:shadow-[0_4px_25px_rgba(0,0,0,0.3)] flex items-center gap-2.5 sm:gap-3">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
+            <BookMarked size={16} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-none">
+              {new Set(teachers.map(t => t.subject).filter(Boolean)).size}
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 uppercase font-semibold truncate mt-0.5">Subjects</p>
+          </div>
         </div>
       </div>
 
