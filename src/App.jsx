@@ -72,6 +72,15 @@ function AdminRoute({ children }) {
   return children;
 }
 
+// Teacher-only (attendance recording is restricted strictly to teachers; admins redirected to /history)
+function TeacherRoute({ children }) {
+  const { role, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (role === 'admin') return <Navigate to="/history" replace />;
+  if (role !== 'teacher') return <Navigate to="/student-dashboard" replace />;
+  return children;
+}
+
 // Staff-only (admin or teacher): students are redirected to their dashboard
 function StaffRoute({ children }) {
   const { role, loading } = useAuth();
@@ -123,7 +132,7 @@ export default function App() {
 
                     {/* Teacher + Admin pages (blocked for students) */}
                     <Route path="dashboard"  element={<StaffRoute><Dashboard /></StaffRoute>} />
-                    <Route path="attendance" element={<StaffRoute><TakeAttendance /></StaffRoute>} />
+                    <Route path="attendance" element={<TeacherRoute><TakeAttendance /></TeacherRoute>} />
                     <Route path="students"   element={<StaffRoute><StudentList /></StaffRoute>} />
                     <Route path="history"           element={<StaffRoute><AttendanceHistory /></StaffRoute>} />
                     <Route path="reports"           element={<StaffRoute><Reports /></StaffRoute>} />

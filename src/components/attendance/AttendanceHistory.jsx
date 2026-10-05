@@ -192,7 +192,7 @@ export default function AttendanceHistory() {
   }, [students, attendanceRecords]);
 
   const canEditRecord = (record) => {
-    if (role === 'admin') return true;
+    if (role === 'admin') return false; // Admin cannot take or edit attendance; restricted to assigned teachers only
     if (role === 'teacher') {
       if (!user?.class && !user?.section) return true;
       const tClass = String(user?.class || '').trim();
@@ -460,14 +460,14 @@ export default function AttendanceHistory() {
                           >
                             <Edit3 size={13} /> Edit
                           </button>
-                        ) : role === 'teacher' ? (
+                        ) : (
                           <span
                             className="flex items-center gap-1.5 min-h-[34px] px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-white/5 bg-slate-50/50 dark:bg-white/[0.02] cursor-not-allowed"
-                            title={`Only Class ${recClass}-${recSection} teacher can edit this record.`}
+                            title={role === 'admin' ? "Only assigned class teachers can record or edit attendance." : `Only Class ${recClass}-${recSection} teacher can edit this record.`}
                           >
                             <Lock size={12} /> Read-only
                           </span>
-                        ) : null}
+                        )}
 
                         {role === 'admin' && (
                           <button

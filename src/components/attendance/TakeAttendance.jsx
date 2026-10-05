@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   ChevronLeft, ChevronRight, Save, RefreshCw,
   Search, Printer, CheckCircle2, Check, X,
@@ -162,6 +163,9 @@ export default function TakeAttendance() {
     refreshStudents,
   } = useApp();
   const { role, user } = useAuth();
+  if (role === 'admin') {
+    return <Navigate to="/history" replace />;
+  }
   const isTeacher = role === 'teacher';
   const teacherAssignedClass = user?.class ? String(user.class) : '';
   const teacherAssignedSection = user?.section ? String(user.section).toUpperCase() : '';

@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   BarChart3,
   Lock,
+  History,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getUserIdentities, isMessageUnreadForUser } from '../../utils/messageUtils';
@@ -199,7 +200,11 @@ export default function Dashboard() {
   const handleClassSelect = (cls, sec) => {
     setSelectedClass(cls);
     setSelectedSection(sec);
-    navigate('/attendance');
+    if (role === 'teacher') {
+      navigate('/attendance');
+    } else {
+      navigate('/history');
+    }
   };
 
   return (
@@ -226,14 +231,26 @@ export default function Dashboard() {
 
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap sm:flex-nowrap">
-            <button
-              type="button"
-              onClick={() => navigate('/attendance')}
-              className="btn-primary h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer flex-1 sm:flex-initial shadow-xs"
-            >
-              <ClipboardCheck size={16} />
-              <span>Take Attendance</span>
-            </button>
+            {role === 'teacher' && (
+              <button
+                type="button"
+                onClick={() => navigate('/attendance')}
+                className="btn-primary h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer flex-1 sm:flex-initial shadow-xs"
+              >
+                <ClipboardCheck size={16} />
+                <span>Take Attendance</span>
+              </button>
+            )}
+            {role === 'admin' && (
+              <button
+                type="button"
+                onClick={() => navigate('/history')}
+                className="btn-primary h-9 sm:h-10 px-3.5 sm:px-4 text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer flex-1 sm:flex-initial shadow-xs"
+              >
+                <History size={16} />
+                <span>Attendance History</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => navigate('/messages')}
@@ -455,7 +472,7 @@ export default function Dashboard() {
                         onClick={() => handleClassSelect(cls, 'A')}
                         className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/[0.04] hover:bg-blue-600/20 text-slate-300 hover:text-blue-400 border border-white/[0.06] hover:border-blue-500/30 text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
                       >
-                        <span>Take</span>
+                        <span>{role === 'teacher' ? 'Take' : 'View'}</span>
                         <ArrowUpRight size={13} />
                       </button>
                     )}
@@ -736,16 +753,29 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-2">
-              <button
-                onClick={() => navigate('/attendance')}
-                className="w-full p-2.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-white flex items-center justify-between text-xs font-semibold transition-all group cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <ClipboardCheck size={15} className="text-blue-400" />
-                  Take Today's Attendance
-                </span>
-                <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
-              </button>
+              {role === 'teacher' ? (
+                <button
+                  onClick={() => navigate('/attendance')}
+                  className="w-full p-2.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-white flex items-center justify-between text-xs font-semibold transition-all group cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <ClipboardCheck size={15} className="text-blue-400" />
+                    Take Today's Attendance
+                  </span>
+                  <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => navigate('/history')}
+                  className="w-full p-2.5 rounded-xl bg-gradient-to-r from-blue-600/20 to-indigo-600/20 hover:from-blue-600/30 hover:to-indigo-600/30 border border-blue-500/30 text-white flex items-center justify-between text-xs font-semibold transition-all group cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <History size={15} className="text-blue-400" />
+                    View Attendance History
+                  </span>
+                  <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+                </button>
+              )}
 
               {role === 'admin' && (
                 <>

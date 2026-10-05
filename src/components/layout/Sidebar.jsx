@@ -11,10 +11,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { getUserIdentities, getUnreadMessagesCountForUser } from '../../utils/messageUtils';
 
-// Admin has full access including Teachers and Settings
+// Admin has full management access, but attendance taking is restricted to teachers only
 const adminNav = [
   { to: '/dashboard',  label: 'Dashboard',          icon: LayoutDashboard },
-  { to: '/attendance', label: 'Take Attendance',    icon: ClipboardCheck  },
   { to: '/teachers',   label: 'Teachers',           icon: UserCheck       },
   { to: '/students',   label: 'Students',           icon: Users           },
   { to: '/history',    label: 'Attendance History', icon: History         },
