@@ -470,25 +470,8 @@ export default function TakeAttendance() {
         </div>
       </div>
 
-      {/* ── 3. ATTENDANCE STATUS MESSAGE (TAKEN VS NOT TAKEN) ── */}
-      {isAttendanceTaken ? (
-        <div className="flex items-center justify-between gap-2 px-3 py-1.5 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs animate-fade-in shadow-xs backdrop-blur-md">
-          <div className="flex items-center gap-2 min-w-0">
-            <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
-            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex-shrink-0">
-                Recorded
-              </span>
-              <p className="font-medium text-slate-200 text-xs truncate sm:whitespace-normal">
-                Class <strong>{activeClass}-{activeSection}</strong> attendance is recorded for this date.
-              </p>
-            </div>
-          </div>
-          <span className="hidden sm:inline-flex items-center text-[11px] font-semibold text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-md border border-emerald-500/20 flex-shrink-0">
-            ✓ Recorded
-          </span>
-        </div>
-      ) : (
+      {/* ── 3. ATTENDANCE STATUS MESSAGE (PENDING ONLY; AUTOMATICALLY HIDES ONCE ATTENDANCE IS TAKEN) ── */}
+      {!isAttendanceTaken && (
         <div className="flex items-center justify-between gap-2 px-3 py-1.5 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs animate-fade-in shadow-xs backdrop-blur-md">
           <div className="flex items-center gap-2 min-w-0">
             <AlertCircle size={15} className="text-amber-400 flex-shrink-0" />
@@ -539,9 +522,17 @@ export default function TakeAttendance() {
           <div className="flex-1 flex flex-col justify-between w-full min-w-0">
             <div>
               <div className="flex items-center justify-between mb-0.5 sm:mb-1">
-                <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
-                  Class {activeClass}-{activeSection}
-                </p>
+                <div className="flex items-center gap-2 min-w-0">
+                  <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                    Class {activeClass}-{activeSection}
+                  </p>
+                  {isAttendanceTaken && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 flex-shrink-0 animate-fade-in">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      Recorded
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#111726] border border-slate-200 dark:border-white/10 px-1.5 sm:px-2 py-0.5 rounded-md flex-shrink-0">
                   {stats.total} Students
                 </span>
