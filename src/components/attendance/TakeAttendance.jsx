@@ -746,23 +746,27 @@ export default function TakeAttendance() {
         </div>
       </div>
 
-      {/* ── 7. STUDENT LIST SEARCH & FILTER CONTROLS ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 no-print">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+      {/* ── 7. STUDENT LIST SEARCH & FILTER CONTROLS (50% SEARCH / 50% FILTERS ON MOBILE) ── */}
+      <div className="flex flex-row items-center justify-between gap-1.5 sm:gap-3 no-print">
+        {/* Search (50% on mobile, flex-1 max-w-md on desktop) */}
+        <div className="relative w-1/2 sm:w-auto sm:flex-1 sm:max-w-md">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
-            placeholder="Search student by name or roll number..."
+            placeholder="Search student..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-8.5 pr-3 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all shadow-xs"
+            className="w-full pl-7 sm:pl-8.5 pr-2 sm:pr-3 py-1 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-sm bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all shadow-xs"
           />
         </div>
 
-        {/* Status Filter Pills */}
-        <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-          {['all', 'present', 'absent'].map(f => {
+        {/* Status Filter Pills (50% on mobile: All, P, A shortcut) */}
+        <div className="w-1/2 sm:w-auto flex items-center justify-end gap-1 sm:gap-1.5 flex-nowrap">
+          {[
+            { id: 'all', label: 'All', mobileLabel: 'All' },
+            { id: 'present', label: 'Present', mobileLabel: 'P' },
+            { id: 'absent', label: 'Absent', mobileLabel: 'A' },
+          ].map(({ id: f, label, mobileLabel }) => {
             const isSelected = filter === f;
             let activeStyle = 'bg-blue-600 text-white border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)]';
             if (f === 'present') activeStyle = 'bg-emerald-600 text-white border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.3)]';
@@ -773,15 +777,18 @@ export default function TakeAttendance() {
             return (
               <button
                 key={f}
+                type="button"
                 onClick={() => setFilter(f)}
-                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-semibold border transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial h-7 sm:h-auto px-1 sm:px-3 py-0.5 sm:py-1.5 rounded-lg sm:rounded-xl text-[10.5px] sm:text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center ${
                   isSelected
                     ? activeStyle
                     : 'bg-white dark:bg-[#111726] border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-[#161F34]'
                 }`}
+                title={`Filter by ${label} (${count})`}
               >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-                <span className={`ml-1 text-[10px] sm:text-[11px] opacity-85`}>({count})</span>
+                <span className="sm:hidden">{mobileLabel}</span>
+                <span className="hidden sm:inline">{label}</span>
+                <span className="ml-0.5 sm:ml-1 text-[9.5px] sm:text-[11px] opacity-85">({count})</span>
               </button>
             );
           })}
