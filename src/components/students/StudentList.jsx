@@ -470,26 +470,50 @@ export default function StudentList() {
             Showing {filtered.length} of {students.length} students enrolled in college
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          {/* Live Refresh */}
           <button
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="btn-secondary flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
-            title="Refresh student data live from cloud"
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden disabled:opacity-60"
+            title="Live Refresh"
+            aria-label="Live Refresh"
           >
-            <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-blue-400' : ''} />
-            <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Live Refresh'}</span>
+            <RefreshCw size={15} className={`flex-shrink-0 ${isRefreshing ? 'animate-spin text-blue-400' : 'text-slate-400 group-hover:text-blue-400 transition-colors'}`} />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              {isRefreshing ? 'Refreshing...' : 'Live Refresh'}
+            </span>
           </button>
-          <label className="btn-secondary cursor-pointer">
-            <Upload size={15} />
-            <span className="hidden sm:inline">Import Sheet</span>
+
+          {/* Import Sheet */}
+          <label
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            title="Import Excel"
+            aria-label="Import Excel"
+          >
+            <Upload size={15} className="flex-shrink-0 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              Import Sheet
+            </span>
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportSheet} />
           </label>
-          <button onClick={handleExportCSV} className="btn-secondary">
-            <Download size={15} />
-            <span className="hidden sm:inline">Export</span>
+
+          {/* Export CSV */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            title="Export CSV"
+            aria-label="Export CSV"
+          >
+            <Download size={15} className="flex-shrink-0 text-slate-400 group-hover:text-emerald-400 transition-colors" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              Export CSV
+            </span>
           </button>
+
+          {/* Delete mode / Specific delete */}
           {!isTeacher && (
             <button
               type="button"
@@ -501,19 +525,33 @@ export default function StudentList() {
                   setIsDeleteMode(true);
                 }
               }}
-              className={`btn-secondary cursor-pointer transition-all ${
+              className={`group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl border shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden ${
                 isDeleteMode
-                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-sm shadow-rose-500/20 ring-1 ring-rose-500/30 font-semibold'
-                  : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border-rose-500/20'
+                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.3)] font-semibold'
+                  : 'text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/20'
               }`}
               title={isDeleteMode ? 'Cancel delete mode' : 'Select and delete specific students'}
               aria-label={isDeleteMode ? 'Cancel delete mode' : 'Delete students'}
             >
-              {isDeleteMode ? <X size={15} /> : <Trash2 size={15} />}
+              {isDeleteMode ? <X size={15} className="flex-shrink-0 text-rose-400" /> : <Trash2 size={15} className="flex-shrink-0 text-rose-400" />}
+              <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+                {isDeleteMode ? 'Cancel' : 'Delete Students'}
+              </span>
             </button>
           )}
-          <button onClick={() => setAddOpen(true)} className="btn-primary">
-            <Plus size={15} /> {isTeacher ? 'Enroll Student' : 'Add Student'}
+
+          {/* Add Student / Enroll Student */}
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-400/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.35)] hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            title={isTeacher ? 'Enroll Student' : 'Add Student'}
+            aria-label={isTeacher ? 'Enroll Student' : 'Add Student'}
+          >
+            <Plus size={15} className="flex-shrink-0 text-white" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              {isTeacher ? 'Enroll Student' : 'Add Student'}
+            </span>
           </button>
         </div>
       </div>

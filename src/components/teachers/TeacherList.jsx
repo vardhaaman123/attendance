@@ -819,24 +819,46 @@ export default function TeacherList() {
             {teachers.length} faculty members assigned across classes • Updates in real-time
           </p>
         </div>
-        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+        <div className="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto flex-wrap">
+          {/* Live Refresh */}
           <button
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="btn-secondary flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-            title="Refresh teacher data live from Firestore"
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden disabled:opacity-50"
+            title="Live Refresh"
+            aria-label="Live Refresh"
           >
-            <RefreshCw size={14} className={isRefreshing ? 'animate-spin text-blue-400' : 'text-slate-400'} />
-            <span className="hidden sm:inline">{isRefreshing ? 'Refreshing...' : 'Live Refresh'}</span>
+            <RefreshCw size={15} className={`flex-shrink-0 ${isRefreshing ? 'animate-spin text-blue-400' : 'text-slate-400 group-hover:text-blue-400 transition-colors'}`} />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              {isRefreshing ? 'Refreshing...' : 'Live Refresh'}
+            </span>
           </button>
-          <button onClick={handleExportCSV} className="btn-secondary">
-            <Download size={15} />
-            <span className="hidden sm:inline">Export CSV</span>
+
+          {/* Export CSV */}
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            title="Export CSV"
+            aria-label="Export CSV"
+          >
+            <Download size={15} className="flex-shrink-0 text-slate-400 group-hover:text-emerald-400 transition-colors" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              Export CSV
+            </span>
           </button>
-          <label className="btn-secondary cursor-pointer">
-            <Upload size={15} />
-            <span className="hidden sm:inline">Import Excel</span>
+
+          {/* Import Excel */}
+          <label
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            title="Import Excel"
+            aria-label="Import Excel"
+          >
+            <Upload size={15} className="flex-shrink-0 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              Import Excel
+            </span>
             <input
               type="file"
               accept=".xlsx,.xls,.csv"
@@ -844,18 +866,34 @@ export default function TeacherList() {
               onChange={handleImportExcel}
             />
           </label>
+
+          {/* Delete All */}
           <button
             type="button"
             onClick={() => setDeleteAllOpen(true)}
             disabled={(teachers?.length || 0) === 0 && (students?.length || 0) === 0}
-            className="btn-secondary text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 border-rose-500/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Delete all teachers or students"
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Delete All"
+            aria-label="Delete All"
           >
-            <Trash2 size={15} />
-            <span className="hidden sm:inline">Delete All</span>
+            <Trash2 size={15} className="flex-shrink-0 text-rose-400" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              Delete All
+            </span>
           </button>
-          <button onClick={() => setAddOpen(true)} className="btn-primary">
-            <Plus size={15} /> Add Teacher
+
+          {/* Add Teacher */}
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="group relative inline-flex items-center justify-center h-9 px-2.5 hover:px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-400/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.35)] hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            title="Add Teacher"
+            aria-label="Add Teacher"
+          >
+            <Plus size={15} className="flex-shrink-0 text-white" />
+            <span className="max-w-0 opacity-0 group-hover:max-w-[140px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
+              Add Teacher
+            </span>
           </button>
         </div>
       </div>
