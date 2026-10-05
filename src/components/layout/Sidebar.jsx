@@ -180,27 +180,29 @@ function SidebarContent({ collapsed, onClose, onToggle }) {
         })}
       </nav>
 
-      {/* Logout Button */}
-      <div className="flex-shrink-0 px-2.5 py-3 border-t border-white/[0.06]">
-        <button
-          onClick={handleLogout}
-          className="group w-full flex items-center h-10 px-3 rounded-xl sm:rounded-2xl text-rose-400/90 hover:bg-rose-500/10 hover:text-rose-300 border border-transparent hover:border-rose-500/20 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-md"
-          title={collapsed ? 'Logout' : undefined}
-        >
-          <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
-            <LogOut size={18} className="transition-transform duration-200 group-hover:scale-110" />
-          </div>
-          <span
-            className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              collapsed
-                ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none'
-                : 'max-w-[130px] opacity-100 translate-x-0 ml-2.5'
-            } text-[13.5px] font-medium flex-1`}
+      {/* Logout Button (Hidden for admin as it is now placed directly inside Settings; retained for teachers and students) */}
+      {role !== 'admin' && (
+        <div className="flex-shrink-0 px-2.5 py-3 border-t border-white/[0.06]">
+          <button
+            onClick={handleLogout}
+            className="group w-full flex items-center h-10 px-3 rounded-xl sm:rounded-2xl text-rose-400/90 hover:bg-rose-500/10 hover:text-rose-300 border border-transparent hover:border-rose-500/20 transition-all duration-200 cursor-pointer overflow-hidden backdrop-blur-md"
+            title={collapsed ? 'Logout' : undefined}
           >
-            Logout
-          </span>
-        </button>
-      </div>
+            <div className="w-5 h-5 flex-shrink-0 flex items-center justify-center">
+              <LogOut size={18} className="transition-transform duration-200 group-hover:scale-110" />
+            </div>
+            <span
+              className={`whitespace-nowrap overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                collapsed
+                  ? 'max-w-0 opacity-0 -translate-x-2 pointer-events-none'
+                  : 'max-w-[130px] opacity-100 translate-x-0 ml-2.5'
+              } text-[13.5px] font-medium flex-1`}
+            >
+              Logout
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

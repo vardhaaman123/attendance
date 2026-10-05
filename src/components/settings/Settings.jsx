@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Save, School, User, Bell, Trash2, AlertTriangle, ArrowRight, Building2, ShieldCheck, Lock, Eye, EyeOff, AlertCircle, KeyRound, CheckCircle } from 'lucide-react';
+import { Save, Bell, Trash2, AlertTriangle, ArrowRight, Building2, ShieldCheck, Lock, Eye, EyeOff, AlertCircle, KeyRound, CheckCircle, LogOut } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +10,11 @@ export default function Settings() {
   const { settings, saveSettings, resetAllSchoolData, addToast } = useApp();
   const { logout, user, verifyAdminPassword, changeAdminPassword, updateAdminProfile } = useAuth();
   const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
 
   const getEffectiveCollege = () => {
     if (user?.collegeName && user.collegeName.trim()) return user.collegeName.trim();
@@ -299,11 +304,20 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="hidden sm:flex items-center">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-500/20">
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-500/20">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             Verified Administrator
           </span>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-rose-500 hover:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/30 transition-all duration-200 cursor-pointer shadow-xs active:scale-95 backdrop-blur-md"
+            title="Logout from administrator account"
+          >
+            <LogOut size={14} className="text-rose-500" />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
@@ -641,6 +655,35 @@ export default function Settings() {
       <button onClick={handleSave} className="btn-primary w-full sm:w-auto">
         <Save size={15} /> Save All Changes
       </button>
+
+      {/* Account Session & Sign Out */}
+      <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200/80 dark:border-white/10 p-5 sm:p-6 backdrop-blur-xl shadow-sm dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.15)]">
+            <LogOut size={16} />
+          </div>
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Account Session</h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">Sign out of your active administrator account</p>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          <div>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">Active Session</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Currently logged in as <span className="font-semibold text-slate-700 dark:text-slate-200">{adminEmail || effectivePrincipal || 'Administrator'}</span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 transition-all duration-200 cursor-pointer shadow-xs active:scale-95 shrink-0"
+          >
+            <LogOut size={14} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
 
       {/* Danger zone */}
       <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-rose-200/70 dark:border-rose-500/20 p-5 sm:p-6 backdrop-blur-xl shadow-sm dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)] space-y-4">
