@@ -221,11 +221,15 @@ export default function Dashboard() {
               <span>{collegeName}</span>
               <span className="text-slate-300 dark:text-white/20">•</span>
               <span>{todayDateStr}</span>
-              <span className="text-slate-300 dark:text-white/20">•</span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
-                <ShieldCheck size={12} />
-                {role === 'admin' ? 'Admin Overview' : `Class ${user?.class || '10'}-${user?.section || 'A'}`}
-              </span>
+              {role === 'teacher' && (
+                <>
+                  <span className="text-slate-300 dark:text-white/20">•</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                    <ShieldCheck size={12} />
+                    {`Class ${user?.class || '10'}-${user?.section || 'A'}`}
+                  </span>
+                </>
+              )}
             </p>
           </div>
 
