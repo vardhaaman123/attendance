@@ -66,8 +66,12 @@ export default function CustomSelect({
     };
     if (open) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [open]);
 
   // Keyboard navigation (Escape to close)
@@ -84,7 +88,6 @@ export default function CustomSelect({
   const handleSelect = (val) => {
     if (disabled) return;
     if (onChange) {
-      // Provide compatibility for both e.target.value and direct value
       onChange({ target: { value: val } });
     }
     setOpen(false);
@@ -126,40 +129,50 @@ export default function CustomSelect({
         />
       </button>
 
-      {/* Advanced Dark Theme Dropdown Menu */}
+      {/* Solid Opaque Dropdown Menu (No bleed-through, zero ghosting) */}
       {open && (
-        <div
-          className={`absolute left-0 z-[100] w-full min-w-[160px] bg-[#0B0F1A]/92 border border-white/15 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-3xl py-1.5 overflow-hidden animate-popover-in ${
-            dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-          }`}
-          style={{ minWidth: '100%' }}
-        >
-          <div className="max-h-60 overflow-y-auto custom-scrollbar p-1 space-y-0.5">
-            {parsedOptions.length === 0 ? (
-              <div className="px-3.5 py-2 text-xs text-slate-500 text-center">No options available</div>
-            ) : (
-              parsedOptions.map((opt) => {
-                const isSelected = String(opt.value) === String(value);
-                return (
-                  <button
-                    type="button"
-                    key={opt.value}
-                    disabled={opt.disabled}
-                    onClick={() => handleSelect(opt.value)}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-150 text-left ${
-                      isSelected
-                        ? 'bg-blue-500/15 text-blue-400 font-semibold border border-blue-500/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
-                        : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
-                    } ${opt.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <span className="truncate">{opt.label}</span>
-                    {isSelected && <Check size={14} className="text-blue-400 flex-shrink-0" />}
-                  </button>
-                );
-              })
-            )}
+        <>
+          {/* Dismiss overlay */}
+          <div
+            className="fixed inset-0 z-[90] cursor-default"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Opaque Dropdown Container */}
+          <div
+            className={`absolute left-0 z-[100] w-full min-w-[170px] bg-[#0E1424] border border-white/20 rounded-2xl shadow-[0_24px_60px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.1)] py-1.5 overflow-hidden animate-popover-in ${
+              dropUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+            }`}
+            style={{ minWidth: '100%' }}
+          >
+            <div className="max-h-60 overflow-y-auto custom-scrollbar p-1.5 space-y-1 bg-[#0E1424]">
+              {parsedOptions.length === 0 ? (
+                <div className="px-3.5 py-2 text-xs text-slate-400 text-center">No options available</div>
+              ) : (
+                parsedOptions.map((opt) => {
+                  const isSelected = String(opt.value) === String(value);
+                  return (
+                    <button
+                      type="button"
+                      key={opt.value}
+                      disabled={opt.disabled}
+                      onClick={() => handleSelect(opt.value)}
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-150 text-left ${
+                        isSelected
+                          ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/25'
+                          : 'text-slate-200 hover:bg-white/[0.08] hover:text-white'
+                      } ${opt.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      <span className="truncate">{opt.label}</span>
+                      {isSelected && <Check size={15} className="text-white flex-shrink-0" />}
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
