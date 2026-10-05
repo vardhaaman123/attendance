@@ -28,14 +28,14 @@ function DateNav({ date, onChange }) {
   const todayStr = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="flex items-center gap-1 sm:gap-1.5 flex-nowrap">
       <button
         type="button"
         onClick={() => move(-1)}
-        className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111726] hover:bg-slate-50 dark:hover:bg-[#161F34] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors shadow-xs cursor-pointer active:scale-95"
+        className="w-6.5 h-6.5 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111726] hover:bg-slate-50 dark:hover:bg-[#161F34] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors shadow-xs cursor-pointer active:scale-95"
         title="Previous Day"
       >
-        <ChevronLeft size={14} />
+        <ChevronLeft size={13} />
       </button>
 
       <HolidayDatePicker
@@ -48,17 +48,17 @@ function DateNav({ date, onChange }) {
         type="button"
         onClick={() => move(1)}
         disabled={isFuture || isToday}
-        className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111726] hover:bg-slate-50 dark:hover:bg-[#161F34] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer active:scale-95"
+        className="w-6.5 h-6.5 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111726] hover:bg-slate-50 dark:hover:bg-[#161F34] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed shadow-xs cursor-pointer active:scale-95"
         title="Next Day"
       >
-        <ChevronRight size={14} />
+        <ChevronRight size={13} />
       </button>
 
       {!isToday && (
         <button
           type="button"
           onClick={() => onChange(todayStr)}
-          className="text-xs text-blue-500 hover:text-blue-400 font-semibold px-1.5 py-0.5 rounded hover:bg-blue-500/10 transition-colors cursor-pointer"
+          className="text-[11px] sm:text-xs text-blue-500 hover:text-blue-400 font-semibold px-1 sm:px-1.5 py-0.5 rounded hover:bg-blue-500/10 transition-colors cursor-pointer"
         >
           Today
         </button>
@@ -113,7 +113,7 @@ function ProgressRing({ percentage }) {
   const color = percentage >= 85 ? '#10B981' : percentage >= 70 ? '#F59E0B' : '#F43F5E';
 
   return (
-    <div className="relative inline-flex items-center justify-center flex-shrink-0 w-16 h-16 sm:w-28 sm:h-28">
+    <div className="relative inline-flex items-center justify-center flex-shrink-0 w-10 h-10 sm:w-28 sm:h-28">
       <svg viewBox={`0 0 ${size} ${size}`} className="w-full h-full -rotate-90">
         <circle
           cx={center}
@@ -137,7 +137,7 @@ function ProgressRing({ percentage }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none select-none">
-        <span className="text-sm sm:text-2xl font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">
+        <span className="text-[10px] sm:text-2xl font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">
           {percentage}%
         </span>
         <span className="hidden sm:inline text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 uppercase tracking-wide">
@@ -385,33 +385,33 @@ export default function TakeAttendance() {
   return (
     <>
       {/* ── SCREEN DASHBOARD UI (HIDDEN ON PRINT) ── */}
-      <div className="no-print max-w-7xl mx-auto space-y-4 sm:space-y-5 animate-fade-in pb-10">
+      <div className="no-print max-w-7xl mx-auto space-y-2 sm:space-y-4 animate-fade-in pb-8 sm:pb-10">
       {/* ── 1. TOP HEADER ACTIONS ── */}
       {isTeacher && (
-        <div className="flex items-center gap-2 pt-1 flex-wrap">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs">
-            <ShieldCheck size={14} className="text-blue-400 flex-shrink-0" />
+        <div className="flex items-center gap-2 pt-0.5 sm:pt-1 flex-wrap">
+          <div className="flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] sm:text-xs">
+            <ShieldCheck size={13} className="text-blue-400 flex-shrink-0" />
             <span>Faculty Mode: <strong>{user?.name}</strong>{teacherAssignedClass && teacherAssignedSection ? ` · Assigned to Class ${teacherAssignedClass}-${teacherAssignedSection}` : ''}</span>
           </div>
         </div>
       )}
 
       {/* ── 2. ATTENDANCE CONTROL BAR ── */}
-      <div className="bg-white dark:bg-[#0B0F19]/80 rounded-2xl border border-slate-200 dark:border-white/10 p-2.5 sm:p-5 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl relative z-30">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4">
+      <div className="bg-white dark:bg-[#0B0F19]/80 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-white/10 p-2 sm:p-5 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl relative z-30">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-1.5 sm:gap-4">
           {/* Left: Class & Section controls - Side-by-side on mobile */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-6">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-6">
             {/* Class */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Class</span>
-              <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-[#111726] p-1 rounded-xl border border-slate-200 dark:border-white/10 w-fit max-w-full">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">Class</span>
+              <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-slate-100 dark:bg-[#111726] p-0.5 sm:p-1 rounded-lg sm:rounded-xl border border-slate-200 dark:border-white/10 w-fit max-w-full">
                 {Array.from(new Set([...students.map(s => String(s.class || '').trim()), '8', '9', '10'])).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(cls => {
                   const isSelected = String(activeClass || '').trim() === String(cls || '').trim();
                   return (
                     <button
                       key={cls}
                       onClick={() => handleClassChange(cls)}
-                      className={`px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95 ${
+                      className={`px-2 py-0.5 sm:px-3.5 sm:py-1.5 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95 ${
                         isSelected
                           ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(59,130,246,0.4)] font-bold'
                           : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -425,16 +425,16 @@ export default function TakeAttendance() {
             </div>
 
             {/* Section */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Section</span>
-              <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-[#111726] p-1 rounded-xl border border-slate-200 dark:border-white/10 w-fit max-w-full">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">Section</span>
+              <div className="inline-flex items-center gap-0.5 sm:gap-1 bg-slate-100 dark:bg-[#111726] p-0.5 sm:p-1 rounded-lg sm:rounded-xl border border-slate-200 dark:border-white/10 w-fit max-w-full">
                 {Array.from(new Set([...students.map(s => String(s.section || '').trim().toUpperCase()), 'A', 'B'])).filter(Boolean).sort().map(sec => {
                   const isSelected = String(activeSection || '').trim().toUpperCase() === String(sec || '').trim().toUpperCase();
                   return (
                     <button
                       key={sec}
                       onClick={() => handleSectionChange(sec)}
-                      className={`px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95 ${
+                      className={`px-2 py-0.5 sm:px-3.5 sm:py-1.5 rounded-md sm:rounded-lg text-[11px] sm:text-xs font-semibold transition-all duration-150 cursor-pointer active:scale-95 ${
                         isSelected
                           ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(59,130,246,0.4)] font-bold'
                           : 'bg-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -449,10 +449,10 @@ export default function TakeAttendance() {
           </div>
 
           {/* Right: Date control & Print Button */}
-          <div className="flex items-center justify-between md:justify-end gap-2 sm:gap-3 pt-2 md:pt-0 border-t border-slate-100 dark:border-white/5 md:border-t-0 w-full md:w-auto flex-wrap sm:flex-nowrap">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Date</span>
-              <div className="flex items-center gap-1.5 flex-1 md:flex-initial">
+          <div className="flex items-center justify-between md:justify-end gap-1.5 sm:gap-3 pt-1.5 md:pt-0 border-t border-slate-100 dark:border-white/5 md:border-t-0 w-full md:w-auto flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400">Date</span>
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-1 md:flex-initial">
                 <DateNav date={date} onChange={handleDateChange} />
               </div>
             </div>
@@ -460,10 +460,10 @@ export default function TakeAttendance() {
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-xs font-semibold bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-[#161F34] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-xs transition-all no-print cursor-pointer active:scale-95 flex-shrink-0"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-semibold bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-[#161F34] text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white shadow-xs transition-all no-print cursor-pointer active:scale-95 flex-shrink-0"
               title="Print Attendance Sheet"
             >
-              <Printer size={14} className="text-blue-500 dark:text-blue-400" />
+              <Printer size={13} className="text-blue-500 dark:text-blue-400" />
               <span>Print</span>
             </button>
           </div>
@@ -509,21 +509,125 @@ export default function TakeAttendance() {
         </div>
       )}
 
-      {/* ── 4. MAIN ATTENDANCE SUMMARY & 5. QUICK ACTIONS & 6. PRIMARY ACTION ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-4">
+      {/* ── MOBILE ONLY: UNIFIED ATTENDANCE SUMMARY & QUICK ACTIONS (ULTRA-COMPACT) ── */}
+      <div className="lg:hidden bg-white dark:bg-[#0B0F19]/80 rounded-xl border border-slate-200 dark:border-white/10 p-2 sm:p-2.5 shadow-sm backdrop-blur-xl space-y-2">
+        {/* Row 1: Mini Ring + Class Info + Present/Absent Stats */}
+        <div className="flex items-center justify-between gap-2">
+          {/* Mini ring & Class Details */}
+          <div className="flex items-center gap-2 min-w-0">
+            <ProgressRing percentage={stats.percentage} />
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  Class {activeClass}-{activeSection}
+                </span>
+                {isAttendanceTaken && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 flex-shrink-0">
+                    <span className="w-1 h-1 rounded-full bg-emerald-400" />
+                    Recorded
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                {stats.total} Students
+              </span>
+            </div>
+          </div>
+
+          {/* Compact Stat Badges */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-lg px-2 py-0.5 text-center min-w-[50px]">
+              <span className="text-[9px] font-bold text-emerald-400 block leading-tight">Present</span>
+              <span className="text-xs font-extrabold text-emerald-300 block leading-tight mt-0.5">{stats.present}</span>
+            </div>
+            <div className="bg-rose-500/10 border border-rose-500/25 rounded-lg px-2 py-0.5 text-center min-w-[50px]">
+              <span className="text-[9px] font-bold text-rose-400 block leading-tight">Absent</span>
+              <span className="text-xs font-extrabold text-rose-300 block leading-tight mt-0.5">{stats.absent}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Bulk Actions (All Present, All Absent, Reset) */}
+        <div className="grid grid-cols-3 gap-1.5 pt-1.5 border-t border-slate-100 dark:border-white/5">
+          <button
+            type="button"
+            onClick={() => markAll('present')}
+            className="h-7 px-1.5 rounded-lg text-[10.5px] font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer"
+            title="Mark all as present"
+          >
+            <Check size={11} className="stroke-[2.5]" />
+            <span className="truncate">All Present</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => markAll('absent')}
+            className="h-7 px-1.5 rounded-lg text-[10.5px] font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer"
+            title="Mark all as absent"
+          >
+            <X size={11} className="stroke-[2.5]" />
+            <span className="truncate">All Absent</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={resetAttendance}
+            className="h-7 px-1.5 rounded-lg text-[10.5px] font-semibold text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer"
+            title="Reset to saved record"
+          >
+            <RefreshCw size={11} />
+            <span>Reset</span>
+          </button>
+        </div>
+
+        {/* Row 3: Full-width Update Button */}
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className={`w-full h-8 flex items-center justify-center gap-1.5 px-3 rounded-lg text-xs font-semibold text-white transition-all duration-200 active:scale-[0.98] cursor-pointer shadow-sm ${
+            saved
+              ? 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+              : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-[0_0_15px_rgba(59,130,246,0.25)]'
+          } disabled:opacity-60 disabled:cursor-not-allowed`}
+        >
+          {saving ? (
+            <>
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+              <span>Saving Attendance...</span>
+            </>
+          ) : saved ? (
+            <>
+              <CheckCircle2 size={13} />
+              <span>Attendance Saved ✓</span>
+            </>
+          ) : (
+            <>
+              <Save size={13} />
+              <span>{isEditing ? 'Update Attendance' : 'Save Attendance'}</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* ── DESKTOP ONLY: MAIN ATTENDANCE SUMMARY & QUICK ACTIONS (SIDE-BY-SIDE) ── */}
+      <div className="hidden lg:grid lg:grid-cols-12 gap-4">
         {/* Left Side (Col 1-8): Main Attendance Summary Card */}
-        <div className="lg:col-span-8 bg-white dark:bg-[#0B0F19]/80 rounded-2xl border border-slate-200 dark:border-white/10 p-2.5 sm:p-5 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl flex flex-row items-center sm:items-stretch gap-3 sm:gap-5">
+        <div className="lg:col-span-8 bg-white dark:bg-[#0B0F19]/80 rounded-2xl border border-slate-200 dark:border-white/10 p-5 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl flex flex-row items-stretch gap-5">
           {/* Circular Progress Ring */}
-          <div className="flex items-center justify-center pr-1 sm:pr-4 sm:border-r border-slate-100 dark:border-white/10 flex-shrink-0">
+          <div className="flex items-center justify-center pr-4 border-r border-slate-100 dark:border-white/10 flex-shrink-0">
             <ProgressRing percentage={stats.percentage} />
           </div>
 
           {/* Right side stats */}
           <div className="flex-1 flex flex-col justify-between w-full min-w-0">
             <div>
-              <div className="flex items-center justify-between mb-0.5 sm:mb-1">
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2 min-w-0">
-                  <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                  <p className="text-base font-bold text-slate-900 dark:text-white truncate">
                     Class {activeClass}-{activeSection}
                   </p>
                   {isAttendanceTaken && (
@@ -533,29 +637,29 @@ export default function TakeAttendance() {
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#111726] border border-slate-200 dark:border-white/10 px-1.5 sm:px-2 py-0.5 rounded-md flex-shrink-0">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-[#111726] border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded-md flex-shrink-0">
                   {stats.total} Students
                 </span>
               </div>
-              <p className="hidden sm:block text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Today's Attendance Overview
               </p>
             </div>
 
             {/* 2 Stat items */}
-            <div className="grid grid-cols-2 gap-2 mt-1 sm:mt-0">
+            <div className="grid grid-cols-2 gap-2 mt-0">
               {/* Present */}
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg sm:rounded-xl px-2 py-1 sm:p-2.5 text-center transition-all hover:border-emerald-500/40">
-                <span className="text-[10px] sm:text-[11px] font-semibold text-emerald-400 block">Present</span>
-                <span className="text-base sm:text-xl font-bold text-emerald-300 leading-tight block mt-0.5">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2.5 text-center transition-all hover:border-emerald-500/40">
+                <span className="text-[11px] font-semibold text-emerald-400 block">Present</span>
+                <span className="text-xl font-bold text-emerald-300 leading-tight block mt-0.5">
                   {stats.present}
                 </span>
               </div>
 
               {/* Absent */}
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg sm:rounded-xl px-2 py-1 sm:p-2.5 text-center transition-all hover:border-rose-500/40">
-                <span className="text-[10px] sm:text-[11px] font-semibold text-rose-400 block">Absent</span>
-                <span className="text-base sm:text-xl font-bold text-rose-300 leading-tight block mt-0.5">
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-2.5 text-center transition-all hover:border-rose-500/40">
+                <span className="text-[11px] font-semibold text-rose-400 block">Absent</span>
+                <span className="text-xl font-bold text-rose-300 leading-tight block mt-0.5">
                   {stats.absent}
                 </span>
               </div>
@@ -564,9 +668,9 @@ export default function TakeAttendance() {
         </div>
 
         {/* Right Side (Col 9-12): Quick Actions & Primary CTA Card */}
-        <div className="lg:col-span-4 bg-white dark:bg-[#0B0F19]/80 rounded-2xl border border-slate-200 dark:border-white/10 p-2.5 sm:p-4 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl flex flex-col justify-between gap-2.5 sm:gap-3">
+        <div className="lg:col-span-4 bg-white dark:bg-[#0B0F19]/80 rounded-2xl border border-slate-200 dark:border-white/10 p-4 shadow-[0_4px_25px_rgba(0,0,0,0.3)] backdrop-blur-xl flex flex-col justify-between gap-3">
           <div>
-            <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Quick Actions
               </span>
@@ -575,11 +679,11 @@ export default function TakeAttendance() {
               </span>
             </div>
 
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => markAll('present')}
-                className="inline-flex items-center justify-center gap-1 min-h-[34px] sm:min-h-[38px] px-1.5 rounded-xl text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 active:scale-95 transition-all cursor-pointer"
+                className="inline-flex items-center justify-center gap-1 min-h-[38px] px-1.5 rounded-xl text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 active:scale-95 transition-all cursor-pointer"
                 title="Mark all as present"
               >
                 <Check size={12} className="stroke-[2.5]" />
@@ -589,7 +693,7 @@ export default function TakeAttendance() {
               <button
                 type="button"
                 onClick={() => markAll('absent')}
-                className="inline-flex items-center justify-center gap-1 min-h-[34px] sm:min-h-[38px] px-1.5 rounded-xl text-[11px] font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 active:scale-95 transition-all cursor-pointer"
+                className="inline-flex items-center justify-center gap-1 min-h-[38px] px-1.5 rounded-xl text-[11px] font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 active:scale-95 transition-all cursor-pointer"
                 title="Mark all as absent"
               >
                 <X size={12} className="stroke-[2.5]" />
@@ -599,7 +703,7 @@ export default function TakeAttendance() {
               <button
                 type="button"
                 onClick={resetAttendance}
-                className="inline-flex items-center justify-center gap-1 min-h-[34px] sm:min-h-[38px] px-1.5 rounded-xl text-[11px] font-semibold text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 active:scale-95 transition-all cursor-pointer"
+                className="inline-flex items-center justify-center gap-1 min-h-[38px] px-1.5 rounded-xl text-[11px] font-semibold text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 active:scale-95 transition-all cursor-pointer"
                 title="Reset to saved record"
               >
                 <RefreshCw size={12} />
@@ -613,7 +717,7 @@ export default function TakeAttendance() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className={`w-full h-9 sm:h-10 flex items-center justify-center gap-2 px-4 rounded-xl text-xs sm:text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98] cursor-pointer shadow-lg ${
+            className={`w-full h-10 flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98] cursor-pointer shadow-lg ${
               saved
                 ? 'bg-emerald-600 hover:bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
                 : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
@@ -643,21 +747,21 @@ export default function TakeAttendance() {
       </div>
 
       {/* ── 7. STUDENT LIST SEARCH & FILTER CONTROLS ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 no-print">
         {/* Search */}
         <div className="relative flex-1 max-w-md">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
             type="text"
             placeholder="Search student by name or roll number..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-xs sm:text-sm bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all shadow-xs"
+            className="w-full pl-8.5 pr-3 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm bg-white dark:bg-[#111726] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all shadow-xs"
           />
         </div>
 
         {/* Status Filter Pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
           {['all', 'present', 'absent'].map(f => {
             const isSelected = filter === f;
             let activeStyle = 'bg-blue-600 text-white border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.3)]';
@@ -670,14 +774,14 @@ export default function TakeAttendance() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-semibold border transition-all cursor-pointer ${
                   isSelected
                     ? activeStyle
                     : 'bg-white dark:bg-[#111726] border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-[#161F34]'
                 }`}
               >
                 {f.charAt(0).toUpperCase() + f.slice(1)}
-                <span className={`ml-1 text-[11px] opacity-85`}>({count})</span>
+                <span className={`ml-1 text-[10px] sm:text-[11px] opacity-85`}>({count})</span>
               </button>
             );
           })}
