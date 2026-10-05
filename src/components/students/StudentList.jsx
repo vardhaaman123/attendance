@@ -444,7 +444,7 @@ export default function StudentList() {
   }, [slipStudent, students]);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 animate-fade-in">
+    <div className={`max-w-7xl mx-auto space-y-5 animate-fade-in ${!isTeacher && isDeleteMode ? "pb-24 sm:pb-28" : ""}`}>
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -626,23 +626,23 @@ export default function StudentList() {
         </div>
       </div>
 
-      {/* Bulk Selection Action Bar */}
+      {/* Floating Bottom Bulk Selection Action Dock (Apple-style) */}
       {!isTeacher && isDeleteMode && (
-        <div className="sticky top-2 z-30 flex flex-wrap items-center justify-between gap-3 p-3 px-4 rounded-xl bg-slate-900/95 dark:bg-[#111726]/95 border border-rose-500/40 shadow-2xl backdrop-blur-xl animate-slide-down">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-            <span className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
-              <CheckSquare size={16} className="text-rose-400" />
+        <div className="fixed bottom-4 sm:bottom-6 left-3 right-3 sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-2xl z-50 p-3 sm:p-3.5 rounded-2xl sm:rounded-3xl bg-[#0B0F1A]/92 border border-rose-500/35 shadow-[0_20px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(244,63,94,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-3xl animate-slide-up flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 sm:gap-3 text-white">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse flex-shrink-0" />
+            <span className="text-xs sm:text-sm font-semibold text-white flex items-center gap-1.5 truncate">
+              <CheckSquare size={16} className="text-rose-400 flex-shrink-0" />
               {selectedStudentIds.length === 0
-                ? 'Select students below to delete'
+                ? 'Select students to delete'
                 : `${selectedStudentIds.length} ${selectedStudentIds.length === 1 ? 'student' : 'students'} selected`}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
             <button
               type="button"
               onClick={handleToggleSelectAll}
-              className="text-xs text-rose-300 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              className="text-xs text-rose-300 hover:text-white px-2.5 py-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer select-none"
             >
               {isAllSelected ? 'Deselect All' : `Select All (${filtered.length})`}
             </button>
@@ -652,7 +652,7 @@ export default function StudentList() {
                 setIsDeleteMode(false);
                 setSelectedStudentIds([]);
               }}
-              className="text-xs text-slate-300 hover:text-white px-2.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              className="text-xs text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer select-none"
             >
               Cancel
             </button>
@@ -660,10 +660,10 @@ export default function StudentList() {
               type="button"
               onClick={() => setDeleteSelectedModalOpen(true)}
               disabled={selectedStudentIds.length === 0}
-              className="btn-danger text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn-danger text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed select-none"
             >
               <Trash2 size={13} />
-              Delete Selected ({selectedStudentIds.length})
+              Delete ({selectedStudentIds.length})
             </button>
           </div>
         </div>
