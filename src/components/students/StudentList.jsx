@@ -450,31 +450,40 @@ export default function StudentList() {
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
           {isTeacher ? 'My Students' : 'Students'}
         </h1>
+        {/* Action Option Buttons (Adjusted Size, Expandable on Hover with Smooth Spring Physics) */}
         <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           {/* Live Refresh */}
           <button
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden disabled:opacity-60"
+            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-colors duration-200 cursor-pointer active:scale-95 disabled:opacity-60 select-none"
             title="Live Refresh"
             aria-label="Live Refresh"
           >
             <RefreshCw size={14} className={`flex-shrink-0 ${isRefreshing ? 'animate-spin text-blue-400' : 'text-slate-400 group-hover:text-blue-400 transition-colors'}`} />
-            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
-              {isRefreshing ? 'Refreshing...' : 'Live Refresh'}
+            <span className="expandable-btn-grid">
+              <span className="expandable-btn-inner">
+                <span className="expandable-btn-text text-xs font-semibold">
+                  {isRefreshing ? 'Refreshing...' : 'Live Refresh'}
+                </span>
+              </span>
             </span>
           </button>
 
           {/* Import Sheet */}
           <label
-            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-colors duration-200 cursor-pointer active:scale-95 select-none"
             title="Import Excel"
             aria-label="Import Excel"
           >
             <Upload size={14} className="flex-shrink-0 text-slate-400 group-hover:text-indigo-400 transition-colors" />
-            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
-              Import Sheet
+            <span className="expandable-btn-grid">
+              <span className="expandable-btn-inner">
+                <span className="expandable-btn-text text-xs font-semibold">
+                  Import Sheet
+                </span>
+              </span>
             </span>
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImportSheet} />
           </label>
@@ -483,13 +492,17 @@ export default function StudentList() {
           <button
             type="button"
             onClick={handleExportCSV}
-            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2.5 rounded-xl bg-white/80 dark:bg-[#111726]/80 border border-slate-200/80 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white shadow-xs backdrop-blur-xl transition-colors duration-200 cursor-pointer active:scale-95 select-none"
             title="Export CSV"
             aria-label="Export CSV"
           >
             <Download size={14} className="flex-shrink-0 text-slate-400 group-hover:text-emerald-400 transition-colors" />
-            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
-              Export CSV
+            <span className="expandable-btn-grid">
+              <span className="expandable-btn-inner">
+                <span className="expandable-btn-text text-xs font-semibold">
+                  Export CSV
+                </span>
+              </span>
             </span>
           </button>
 
@@ -505,7 +518,7 @@ export default function StudentList() {
                   setIsDeleteMode(true);
                 }
               }}
-              className={`group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl border shadow-xs backdrop-blur-xl transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden ${
+              className={`group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2.5 rounded-xl border shadow-xs backdrop-blur-xl transition-colors duration-200 cursor-pointer active:scale-95 select-none ${
                 isDeleteMode
                   ? 'bg-rose-500/20 text-rose-400 border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.3)] font-semibold'
                   : 'text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/20'
@@ -514,8 +527,12 @@ export default function StudentList() {
               aria-label={isDeleteMode ? 'Cancel delete mode' : 'Delete students'}
             >
               {isDeleteMode ? <X size={14} className="flex-shrink-0 text-rose-400" /> : <Trash2 size={14} className="flex-shrink-0 text-rose-400" />}
-              <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
-                {isDeleteMode ? 'Cancel' : 'Delete Students'}
+              <span className="expandable-btn-grid">
+                <span className="expandable-btn-inner">
+                  <span className="expandable-btn-text text-xs font-semibold">
+                    {isDeleteMode ? 'Cancel' : 'Delete Students'}
+                  </span>
+                </span>
               </span>
             </button>
           )}
@@ -524,13 +541,17 @@ export default function StudentList() {
           <button
             type="button"
             onClick={() => setAddOpen(true)}
-            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2 sm:px-2.5 hover:px-3 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-400/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.35)] hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 ease-out cursor-pointer active:scale-95 overflow-hidden"
+            className="group relative inline-flex items-center justify-center h-8 sm:h-8.5 px-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 border border-blue-400/30 text-white shadow-[0_0_15px_rgba(59,130,246,0.35)] hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-colors duration-200 cursor-pointer active:scale-95 select-none"
             title={isTeacher ? 'Enroll Student' : 'Add Student'}
             aria-label={isTeacher ? 'Enroll Student' : 'Add Student'}
           >
             <Plus size={14} className="flex-shrink-0 text-white" />
-            <span className="max-w-0 opacity-0 group-hover:max-w-[120px] group-hover:opacity-100 group-hover:ml-1.5 transition-all duration-300 ease-out whitespace-nowrap overflow-hidden text-xs font-semibold">
-              {isTeacher ? 'Enroll Student' : 'Add Student'}
+            <span className="expandable-btn-grid">
+              <span className="expandable-btn-inner">
+                <span className="expandable-btn-text text-xs font-semibold">
+                  {isTeacher ? 'Enroll Student' : 'Add Student'}
+                </span>
+              </span>
             </span>
           </button>
         </div>
