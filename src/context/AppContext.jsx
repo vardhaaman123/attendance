@@ -179,9 +179,15 @@ export function AppProvider({ children }) {
   messagesRef.current = messages;
 
   // ── Toast system (UI only) ──
-  const addToast = useCallback((message, type = 'success') => {
+  const addToast = useCallback((messageOrObj, type = 'success') => {
+    let msg = messageOrObj;
+    let toastType = type;
+    if (typeof messageOrObj === 'object' && messageOrObj !== null) {
+      msg = messageOrObj.message || messageOrObj.text || JSON.stringify(messageOrObj);
+      if (messageOrObj.type) toastType = messageOrObj.type;
+    }
     const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message: String(msg ?? ''), type: toastType }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);
@@ -1153,7 +1159,11 @@ export function AppProvider({ children }) {
       collegeId: targetCollege,
     });
 
-    await fsDeleteDoc('messages', msgId, targetCollege);
+    try {
+      await fsDeleteDoc('messages', msgId, targetCollege);
+    } catch (err) {
+      console.warn('Failed to delete message doc from Firestore:', err);
+    }
   }, [getTargetCollege]);
 
   const reactToMessage = useCallback(async (msgId, emoji) => {

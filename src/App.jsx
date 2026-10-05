@@ -5,6 +5,7 @@ import { AppProvider } from './context/AppContext';
 import { useEffect } from 'react';
 import { initializeSeedData } from './data/seedData';
 
+import ErrorBoundary from './components/ui/ErrorBoundary';
 import AppLayout from './components/layout/AppLayout';
 import RoleSelectorPage from './components/auth/RoleSelectorPage';
 import LoginPage from './components/auth/LoginPage';
@@ -89,56 +90,58 @@ function GuestRoute({ children }) {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <SeedInitializer>
-          <AppProvider>
-            <BrowserRouter>
-              <Routes>
-                {/* ── Public: Role selector ── */}
-                <Route path="/" element={<GuestRoute><RoleSelectorPage /></GuestRoute>} />
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <SeedInitializer>
+            <AppProvider>
+              <BrowserRouter>
+                <Routes>
+                  {/* ── Public: Role selector ── */}
+                  <Route path="/" element={<GuestRoute><RoleSelectorPage /></GuestRoute>} />
 
-                {/* ── Login routes ── */}
-                <Route path="/student-login" element={<GuestRoute><StudentLoginPage /></GuestRoute>} />
-                <Route path="/teacher-login" element={<GuestRoute><TeacherLoginPage /></GuestRoute>} />
-                <Route path="/admin-login"   element={<GuestRoute><LoginPage /></GuestRoute>} />
-                <Route path="/login"         element={<GuestRoute><LoginPage /></GuestRoute>} />
+                  {/* ── Login routes ── */}
+                  <Route path="/student-login" element={<GuestRoute><StudentLoginPage /></GuestRoute>} />
+                  <Route path="/teacher-login" element={<GuestRoute><TeacherLoginPage /></GuestRoute>} />
+                  <Route path="/admin-login"   element={<GuestRoute><LoginPage /></GuestRoute>} />
+                  <Route path="/login"         element={<GuestRoute><LoginPage /></GuestRoute>} />
 
-                {/* ── All roles share the same AppLayout ── */}
-                <Route
-                  path="/"
-                  element={<PrivateRoute><AppLayout /></PrivateRoute>}
-                >
-                  {/* Student-only pages */}
-                  <Route path="student-dashboard" element={<StudentDashboard />} />
-                  <Route path="my-profile"        element={<StudentProfile />} />
-                  <Route path="my-marks"          element={<StudentMarks />} />
-                  <Route path="my-password"       element={<StudentPassword />} />
+                  {/* ── All roles share the same AppLayout ── */}
+                  <Route
+                    path="/"
+                    element={<PrivateRoute><AppLayout /></PrivateRoute>}
+                  >
+                    {/* Student-only pages */}
+                    <Route path="student-dashboard" element={<StudentDashboard />} />
+                    <Route path="my-profile"        element={<StudentProfile />} />
+                    <Route path="my-marks"          element={<StudentMarks />} />
+                    <Route path="my-password"       element={<StudentPassword />} />
 
 
-                  {/* Shared pages accessible to all authenticated users (Student, Teacher, Admin) */}
-                  <Route path="messages"          element={<Messages />} />
+                    {/* Shared pages accessible to all authenticated users (Student, Teacher, Admin) */}
+                    <Route path="messages"          element={<Messages />} />
 
-                  {/* Teacher + Admin pages (blocked for students) */}
-                  <Route path="dashboard"  element={<StaffRoute><Dashboard /></StaffRoute>} />
-                  <Route path="attendance" element={<StaffRoute><TakeAttendance /></StaffRoute>} />
-                  <Route path="students"   element={<StaffRoute><StudentList /></StaffRoute>} />
-                  <Route path="history"           element={<StaffRoute><AttendanceHistory /></StaffRoute>} />
-                  <Route path="reports"           element={<StaffRoute><Reports /></StaffRoute>} />
-                  <Route path="marks"             element={<StaffRoute><Marks /></StaffRoute>} />
-                  <Route path="teacher-password"  element={<StaffRoute><TeacherPassword /></StaffRoute>} />
+                    {/* Teacher + Admin pages (blocked for students) */}
+                    <Route path="dashboard"  element={<StaffRoute><Dashboard /></StaffRoute>} />
+                    <Route path="attendance" element={<StaffRoute><TakeAttendance /></StaffRoute>} />
+                    <Route path="students"   element={<StaffRoute><StudentList /></StaffRoute>} />
+                    <Route path="history"           element={<StaffRoute><AttendanceHistory /></StaffRoute>} />
+                    <Route path="reports"           element={<StaffRoute><Reports /></StaffRoute>} />
+                    <Route path="marks"             element={<StaffRoute><Marks /></StaffRoute>} />
+                    <Route path="teacher-password"  element={<StaffRoute><TeacherPassword /></StaffRoute>} />
 
-                  {/* Admin-only */}
-                  <Route path="teachers" element={<AdminRoute><TeacherList /></AdminRoute>} />
-                  <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
-                </Route>
+                    {/* Admin-only */}
+                    <Route path="teachers" element={<AdminRoute><TeacherList /></AdminRoute>} />
+                    <Route path="settings" element={<AdminRoute><Settings /></AdminRoute>} />
+                  </Route>
 
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </BrowserRouter>
-          </AppProvider>
-        </SeedInitializer>
-      </AuthProvider>
-    </ThemeProvider>
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </BrowserRouter>
+            </AppProvider>
+          </SeedInitializer>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

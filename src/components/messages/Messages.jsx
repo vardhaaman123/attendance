@@ -776,25 +776,25 @@ export default function Messages() {
   const handleConfirmBatchDelete = async () => {
     if (selectedMsgIds.size === 0 || isDeleting) return;
     setIsDeleting(true);
+    const count = selectedMsgIds.size;
+    const idsToDelete = Array.from(selectedMsgIds);
     try {
-      const idsToDelete = Array.from(selectedMsgIds);
+      // Close confirmation dialog and exit selection mode immediately
+      setConfirmDeleteModalOpen(false);
+      setIsSelectMode(false);
+      setSelectedMsgIds(new Set());
+
       await Promise.all(idsToDelete.map((id) => deleteMessage(id)));
       if (addToast) {
-        addToast({
-          type: 'success',
-          message: `Deleted ${idsToDelete.length} ${idsToDelete.length === 1 ? 'message' : 'messages'} successfully.`,
-        });
+        addToast(
+          `Deleted ${count} ${count === 1 ? 'message' : 'messages'} successfully.`,
+          'success'
+        );
       }
-      setSelectedMsgIds(new Set());
-      setIsSelectMode(false);
-      setConfirmDeleteModalOpen(false);
     } catch (err) {
       console.error('Failed to delete messages:', err);
       if (addToast) {
-        addToast({
-          type: 'error',
-          message: 'Failed to delete selected messages. Please try again.',
-        });
+        addToast('Failed to delete selected messages. Please try again.', 'error');
       }
     } finally {
       setIsDeleting(false);

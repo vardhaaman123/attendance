@@ -38,6 +38,9 @@ const toastStyles = {
 function Toast({ toast, onRemove }) {
   const Icon = icons[toast.type] || CheckCircle;
   const style = toastStyles[toast.type] || toastStyles.success;
+  const displayMessage = typeof toast.message === 'object' && toast.message !== null
+    ? (toast.message.message || toast.message.text || JSON.stringify(toast.message))
+    : String(toast.message ?? '');
 
   return (
     <div
@@ -45,10 +48,10 @@ function Toast({ toast, onRemove }) {
     >
       <div className={`absolute left-0 top-0 bottom-0 w-1 ${style.indicator}`} />
       <Icon size={18} className={`flex-shrink-0 mt-0.5 ${style.iconColor}`} />
-      <p className="text-xs sm:text-sm font-medium flex-1 text-slate-100 leading-snug">{toast.message}</p>
+      <p className="text-xs sm:text-sm font-medium flex-1 text-slate-100 leading-snug">{displayMessage}</p>
       <button
         onClick={() => onRemove(toast.id)}
-        className="flex-shrink-0 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+        className="flex-shrink-0 p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
         aria-label="Dismiss toast"
       >
         <X size={14} />
