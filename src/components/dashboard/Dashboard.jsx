@@ -99,14 +99,6 @@ export default function Dashboard() {
       .join(' ');
   }, [rawCollegeName]);
 
-  const todayDateStr = useMemo(() => {
-    return new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-  }, []);
-
-  const todayFullDateStr = useMemo(() => {
-    return new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  }, []);
-
   // Filter by class pill (null = All Classes)
   const [filterClass, setFilterClass] = useState(role === 'teacher' && user?.class ? String(user.class) : 'all');
   const [chartView, setChartView] = useState('weekly'); // 'weekly' | 'classes'
@@ -224,48 +216,13 @@ export default function Dashboard() {
       <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-[#0B0F19]/80 border border-slate-200/80 dark:border-white/10 p-4 sm:p-6 backdrop-blur-2xl shadow-sm dark:shadow-[0_4px_30px_rgba(0,0,0,0.3)] space-y-4 sm:space-y-5">
         {/* Top Row: School Name & Quick Action Buttons */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="space-y-2 min-w-0">
+          <div className="min-w-0">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5 min-w-0">
               <span className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/25 border border-white/15 flex-shrink-0">
                 <GraduationCap size={19} className="sm:w-5 sm:h-5" />
               </span>
               <span className="truncate">{collegeName}</span>
             </h1>
-
-            {/* Improved Date & Institute Data Badges */}
-            <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap text-xs font-medium text-slate-500 dark:text-slate-400">
-              <span className="inline-flex items-center gap-1.5 text-slate-700 dark:text-slate-200 font-semibold bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 px-2.5 py-1 rounded-xl shadow-2xs">
-                <Calendar size={13} className="text-blue-500 dark:text-blue-400" />
-                <span className="hidden sm:inline">{todayFullDateStr}</span>
-                <span className="sm:hidden">{todayDateStr}</span>
-              </span>
-
-              <span className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 px-2.5 py-1 rounded-xl text-slate-700 dark:text-slate-300">
-                <Users size={13} className="text-emerald-500 dark:text-emerald-400" />
-                <span>{students.length} Students</span>
-              </span>
-
-              {role === 'admin' && teachers.length > 0 && (
-                <span className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-white/[0.05] border border-slate-200/80 dark:border-white/10 px-2.5 py-1 rounded-xl text-slate-700 dark:text-slate-300">
-                  <UserCheck size={13} className="text-purple-500 dark:text-purple-400" />
-                  <span>{teachers.length} Teachers</span>
-                </span>
-              )}
-
-              {role === 'teacher' && (
-                <span className="inline-flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/25 px-2.5 py-1 rounded-xl text-blue-600 dark:text-blue-400 font-semibold">
-                  <ShieldCheck size={13} />
-                  <span>Class {user?.class || '10'}-{user?.section || 'A'}</span>
-                </span>
-              )}
-
-              {todayStats.total > 0 && (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-xl text-emerald-600 dark:text-emerald-400 font-semibold">
-                  <TrendingUp size={13} />
-                  <span>{todayStats.percentage}% Today</span>
-                </span>
-              )}
-            </div>
           </div>
 
           {/* Quick Action Buttons */}
