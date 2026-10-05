@@ -23,7 +23,10 @@ import {
   Camera,
   ChevronLeft,
   Lock,
+  CheckSquare,
+  AlertTriangle,
 } from 'lucide-react';
+import Modal from '../ui/Modal';
 
 const EMOJIS = ['👍', '❤️', '🎉', '👏', '📢', '⏰', '📝', '✅'];
 
@@ -42,6 +45,10 @@ export default function Messages() {
   const [showEmojiBar, setShowEmojiBar] = useState(false);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedMsgIds, setSelectedMsgIds] = useState(new Set());
+  const [confirmDeleteModalOpen, setConfirmDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -728,6 +735,73 @@ export default function Messages() {
     );
   }, [conversationMessages, chatSearch]);
 
+  // Reset selection mode on conversation or tab change
+  useEffect(() => {
+    setIsSelectMode(false);
+    setSelectedMsgIds(new Set());
+  }, [selectedRecipientId, activeTab]);
+
+  // Determine if current user has permission to delete a specific message
+  const canDeleteMessage = useCallback((msg) => {
+    if (!msg) return false;
+    if (normRole === 'admin') return true;
+    return myAllIds.includes(msg.senderId) || (currentTeacherRecord?.id && msg.senderId === currentTeacherRecord.id);
+  }, [normRole, myAllIds, currentTeacherRecord]);
+
+  // Messages in current view that can be deleted by current user
+  const deletableFilteredMessages = useMemo(() => {
+    return filteredMessages.filter((msg) => canDeleteMessage(msg));
+  }, [filteredMessages, canDeleteMessage]);
+
+  const toggleSelectMessage = useCallback((msgId) => {
+    setSelectedMsgIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(msgId)) {
+        next.delete(msgId);
+      } else {
+        next.add(msgId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleSelectAll = useCallback(() => {
+    if (selectedMsgIds.size === deletableFilteredMessages.length && deletableFilteredMessages.length > 0) {
+      setSelectedMsgIds(new Set());
+    } else {
+      setSelectedMsgIds(new Set(deletableFilteredMessages.map((m) => m.id)));
+    }
+  }, [selectedMsgIds.size, deletableFilteredMessages]);
+
+  const handleConfirmBatchDelete = async () => {
+    if (selectedMsgIds.size === 0 || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedMsgIds);
+      await Promise.all(idsToDelete.map((id) => deleteMessage(id)));
+      if (addToast) {
+        addToast({
+          type: 'success',
+          message: `Deleted ${idsToDelete.length} ${idsToDelete.length === 1 ? 'message' : 'messages'} successfully.`,
+        });
+      }
+      setSelectedMsgIds(new Set());
+      setIsSelectMode(false);
+      setConfirmDeleteModalOpen(false);
+    } catch (err) {
+      console.error('Failed to delete messages:', err);
+      if (addToast) {
+        addToast({
+          type: 'error',
+          message: 'Failed to delete selected messages. Please try again.',
+        });
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+
 
   // Recipient Meta Info
   const recipientMeta = useMemo(() => {
@@ -1159,6 +1233,30 @@ export default function Messages() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Select Messages Mode Toggle */}
+            {deletableFilteredMessages.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isSelectMode) {
+                    setIsSelectMode(false);
+                    setSelectedMsgIds(new Set());
+                  } else {
+                    setIsSelectMode(true);
+                  }
+                }}
+                className={`h-8 px-2.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isSelectMode
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.06] border border-white/[0.06]'
+                }`}
+                title={isSelectMode ? 'Exit select mode' : 'Select messages to delete'}
+              >
+                <CheckSquare size={13} className={isSelectMode ? 'text-white' : 'text-slate-400'} />
+                <span className="hidden sm:inline">{isSelectMode ? 'Done' : 'Select'}</span>
+              </button>
+            )}
+
             {showSearchInput ? (
               <div className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.1] rounded-xl px-2.5 py-1 text-xs">
                 <Search size={13} className="text-slate-400" />
@@ -1214,6 +1312,8 @@ export default function Messages() {
               const isMe =
                 myAllIds.includes(msg.senderId) ||
                 (normRole === 'admin' && ((msg.senderRole || '').toLowerCase() === 'admin' || msg.senderId === 'admin'));
+              const canDelete = canDeleteMessage(msg);
+              const isSelected = selectedMsgIds.has(msg.id);
 
               const roleColors = {
                 admin: 'bg-purple-500/15 text-purple-300',
@@ -1224,10 +1324,34 @@ export default function Messages() {
               return (
                 <div
                   key={msg.id}
-                  className={`group relative flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade-in`}
+                  className={`group relative flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-fade-in ${
+                    isSelectMode && canDelete ? 'cursor-pointer select-none' : ''
+                  }`}
+                  onClick={isSelectMode && canDelete ? () => toggleSelectMessage(msg.id) : undefined}
                 >
                   {/* Sender & Timestamp Header */}
                   <div className="flex items-center gap-1.5 mb-1 px-1">
+                    {/* Selection Checkbox in Select Mode */}
+                    {isSelectMode && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (canDelete) toggleSelectMessage(msg.id);
+                        }}
+                        disabled={!canDelete}
+                        className={`w-4 h-4 rounded flex items-center justify-center transition-all mr-1 flex-shrink-0 cursor-pointer ${
+                          !canDelete
+                            ? 'opacity-20 cursor-not-allowed bg-slate-700 border border-slate-600'
+                            : isSelected
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/40 ring-1 ring-blue-400'
+                            : 'border border-white/30 hover:border-blue-400 bg-white/[0.04]'
+                        }`}
+                        title={!canDelete ? 'Cannot delete this message' : isSelected ? 'Deselect message' : 'Select message'}
+                      >
+                        {isSelected && <Check size={11} strokeWidth={3} className="text-white" />}
+                      </button>
+                    )}
                     <span className="text-[11px] font-medium text-slate-300">
                       {isMe ? 'You' : msg.senderName}
                     </span>
@@ -1247,6 +1371,12 @@ export default function Messages() {
                   {/* Message Bubble: Sleek rounded-2xl with clean tail and no double-bordered clutter */}
                   <div
                     className={`relative max-w-[85%] md:max-w-[70%] px-4 py-2.5 rounded-2xl text-[13.5px] leading-relaxed whitespace-pre-wrap transition-all ${
+                      isSelected
+                        ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/25 scale-[1.005]'
+                        : isSelectMode && canDelete
+                        ? 'hover:ring-1 hover:ring-blue-400/40'
+                        : ''
+                    } ${
                       isMe
                         ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-xs shadow-sm shadow-blue-500/20'
                         : 'bg-[#131927] border border-white/[0.06] text-slate-100 rounded-tl-xs shadow-sm'
@@ -1275,46 +1405,67 @@ export default function Messages() {
                     </div>
 
                     {/* Sleek Floating Action Bar on Hover */}
-                    <div
-                      className={`absolute top-0 -translate-y-1/2 ${
-                        isMe ? 'left-2 -translate-x-full' : 'right-2 translate-x-full'
-                      } hidden group-hover:flex items-center gap-0.5 bg-[#161D2F] border border-white/10 px-1.5 py-1 rounded-full shadow-xl z-20`}
-                    >
-                      <button
-                        onClick={() => handleCopy(msg.id, msg.text)}
-                        className="p-1 text-slate-400 hover:text-white rounded-full hover:bg-white/[0.08]"
-                        title="Copy message"
+                    {!isSelectMode && (
+                      <div
+                        className={`absolute top-0 -translate-y-1/2 ${
+                          isMe ? 'left-2 -translate-x-full' : 'right-2 translate-x-full'
+                        } hidden group-hover:flex items-center gap-0.5 bg-[#161D2F] border border-white/10 px-1.5 py-1 rounded-full shadow-xl z-20`}
                       >
-                        {copiedId === msg.id ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                      </button>
-                      <button
-                        onClick={() => reactToMessage(msg.id, '👍')}
-                        className="p-1 text-xs hover:scale-125 transition-transform"
-                      >
-                        👍
-                      </button>
-                      <button
-                        onClick={() => reactToMessage(msg.id, '❤️')}
-                        className="p-1 text-xs hover:scale-125 transition-transform"
-                      >
-                        ❤️
-                      </button>
-                      <button
-                        onClick={() => reactToMessage(msg.id, '🎉')}
-                        className="p-1 text-xs hover:scale-125 transition-transform"
-                      >
-                        🎉
-                      </button>
-                      {(isMe || role === 'admin') && (
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsSelectMode(true);
+                              toggleSelectMessage(msg.id);
+                            }}
+                            className="p-1 text-slate-400 hover:text-blue-400 rounded-full hover:bg-white/[0.08] transition-colors"
+                            title="Select message"
+                          >
+                            <CheckSquare size={12} />
+                          </button>
+                        )}
                         <button
-                          onClick={() => deleteMessage(msg.id)}
-                          className="p-1 text-slate-400 hover:text-red-400 rounded-full hover:bg-red-500/10"
-                          title="Delete message"
+                          type="button"
+                          onClick={() => handleCopy(msg.id, msg.text)}
+                          className="p-1 text-slate-400 hover:text-white rounded-full hover:bg-white/[0.08]"
+                          title="Copy message"
                         >
-                          <Trash2 size={12} />
+                          {copiedId === msg.id ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
                         </button>
-                      )}
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => reactToMessage(msg.id, '👍')}
+                          className="p-1 text-xs hover:scale-125 transition-transform"
+                        >
+                          👍
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reactToMessage(msg.id, '❤️')}
+                          className="p-1 text-xs hover:scale-125 transition-transform"
+                        >
+                          ❤️
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => reactToMessage(msg.id, '🎉')}
+                          className="p-1 text-xs hover:scale-125 transition-transform"
+                        >
+                          🎉
+                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => deleteMessage(msg.id)}
+                            className="p-1 text-slate-400 hover:text-red-400 rounded-full hover:bg-red-500/10"
+                            title="Delete message"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Reaction Chips */}
@@ -1341,7 +1492,7 @@ export default function Messages() {
 
         {/* Quick Emoji Bar */}
         {(() => {
-          if (normRole === 'student') return null;
+          if (isSelectMode || normRole === 'student') return null;
           const isNoRecipient = (activeTab === 'teachers' && !selectedRecipientId) || (activeTab === 'students' && !selectedRecipientId);
           return showEmojiBar && !isNoRecipient ? (
             <div className="flex-shrink-0 px-4 py-1.5 bg-[#070A12] border-t border-white/[0.06] flex items-center gap-1.5 overflow-x-auto custom-scrollbar animate-fade-in">
@@ -1360,8 +1511,60 @@ export default function Messages() {
           ) : null;
         })()}
 
-        {/* Bottom Input Composer */}
+        {/* Bottom Input Composer or Selection Action Bar */}
         {(() => {
+          if (isSelectMode) {
+            return (
+              <div className="flex-shrink-0 px-4 py-3 bg-[#0c101d] border-t border-white/[0.08] shadow-2xl relative z-20 pb-safe animate-fade-in">
+                <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      className="text-xs font-medium text-slate-300 hover:text-white px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    >
+                      <CheckSquare size={13} className={selectedMsgIds.size === deletableFilteredMessages.length && deletableFilteredMessages.length > 0 ? 'text-blue-400' : 'text-slate-400'} />
+                      <span>
+                        {selectedMsgIds.size === deletableFilteredMessages.length && deletableFilteredMessages.length > 0
+                          ? 'Deselect All'
+                          : 'Select All'}
+                      </span>
+                    </button>
+
+                    <span className="text-xs font-semibold text-slate-200">
+                      <span className="text-blue-400">{selectedMsgIds.size}</span>
+                      <span className="text-slate-400 font-normal ml-1">
+                        of {deletableFilteredMessages.length} selected
+                      </span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSelectMode(false);
+                        setSelectedMsgIds(new Set());
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedMsgIds.size === 0}
+                      onClick={() => setConfirmDeleteModalOpen(true)}
+                      className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 disabled:bg-red-600/30 text-white disabled:text-red-300/40 flex items-center gap-1.5 transition-all shadow-md shadow-red-600/30 disabled:shadow-none cursor-pointer disabled:cursor-not-allowed active:scale-95"
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete ({selectedMsgIds.size})</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
           if (normRole === 'student') {
             return (
               <div className="flex-shrink-0 px-4 py-3 bg-[#070A12] text-center text-xs text-slate-400 border-t border-white/[0.06] flex items-center justify-center gap-2">
@@ -1479,6 +1682,56 @@ export default function Messages() {
           );
         })()}
       </div>
+
+      {/* Batch Delete Confirmation Modal */}
+      <Modal
+        open={confirmDeleteModalOpen}
+        onClose={() => !isDeleting && setConfirmDeleteModalOpen(false)}
+        title="Delete Messages"
+        maxWidth="max-w-md"
+        footer={
+          <div className="flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setConfirmDeleteModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={handleConfirmBatchDelete}
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 text-white flex items-center gap-2 transition-all shadow-md shadow-red-600/30 disabled:opacity-50 cursor-pointer active:scale-95"
+            >
+              {isDeleting ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 size={14} />
+                  <span>Delete Permanently</span>
+                </>
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
+          <AlertTriangle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-red-200">
+              Are you sure you want to delete {selectedMsgIds.size} {selectedMsgIds.size === 1 ? 'message' : 'messages'}?
+            </p>
+            <p className="text-red-300/80 leading-relaxed">
+              This action will permanently delete {selectedMsgIds.size === 1 ? 'this message' : 'these selected messages'} for all users in this conversation. This action cannot be undone.
+            </p>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
