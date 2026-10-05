@@ -913,11 +913,11 @@ export default function TeacherList() {
         </div>
       </div>
 
-      {/* Filters: 70% Search Bar & 30% Class / Section Filters */}
+      {/* Filters: 50% Search Bar & 50% Class / Section Filters */}
       <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
         <div className="flex items-center gap-1.5 sm:gap-2.5 w-full">
           {/* 70% Search Bar */}
-          <div className="w-[68%] sm:w-[70%] flex-shrink-0 min-w-0 relative">
+          <div className="w-1/2 min-w-0 relative">
             <Search size={15} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
@@ -929,7 +929,7 @@ export default function TeacherList() {
           </div>
 
           {/* 30% Dropdown Selectors */}
-          <div className="w-[32%] sm:w-[30%] flex-1 min-w-0 flex items-center gap-1 sm:gap-1.5">
+          <div className="w-1/2 min-w-0 flex items-center gap-1.5 sm:gap-2">
             <div className="flex-1 min-w-0">
               <CustomSelect
                 value={classFilter}
