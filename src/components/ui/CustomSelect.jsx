@@ -20,7 +20,7 @@ export default function CustomSelect({
     if (options && options.length > 0) {
       return options.map((opt) =>
         typeof opt === 'object' && opt !== null
-          ? { value: String(opt.value), label: opt.label ?? opt.value }
+          ? { value: String(opt.value), label: opt.label ?? opt.value, shortLabel: opt.shortLabel }
           : { value: String(opt), label: String(opt) }
       );
     }
@@ -32,6 +32,7 @@ export default function CustomSelect({
           list.push({
             value: child.props.value !== undefined ? String(child.props.value) : String(child.props.children),
             label: child.props.children,
+            shortLabel: child.props['data-short-label'],
             disabled: Boolean(child.props.disabled),
           });
         }
@@ -45,6 +46,16 @@ export default function CustomSelect({
   // Current selected label
   const selectedOption = parsedOptions.find((opt) => String(opt.value) === String(value));
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
+
+  // Compact label for mobile displays
+  const mobileLabel = useMemo(() => {
+    if (selectedOption?.shortLabel) return selectedOption.shortLabel;
+    const str = String(displayLabel || '');
+    if (str.startsWith('All Classes')) return str.replace('All Classes', 'All');
+    if (str === 'All Sections') return 'All Sec';
+    if (str.startsWith('Section ')) return str.replace('Section ', 'Sec ');
+    return str;
+  }, [selectedOption, displayLabel]);
 
   // Detect whether dropdown should open upward
   const handleOpen = () => {
@@ -98,32 +109,35 @@ export default function CustomSelect({
   return (
     <div
       ref={containerRef}
-      className={`relative ${isAutoWidth ? 'inline-block w-auto min-w-[130px]' : 'w-full'} ${open ? 'z-50' : 'z-10'}`}
+      className={`relative ${isAutoWidth ? 'inline-block w-auto min-w-[100px]' : 'w-full'} ${open ? 'z-50' : 'z-10'}`}
     >
       {/* Trigger Button */}
       <button
         type="button"
         disabled={disabled}
         onClick={handleOpen}
-        className={`flex items-center justify-between gap-2 text-left cursor-pointer transition-all duration-200 select-none ${
+        className={`flex items-center justify-between gap-1 sm:gap-2 text-left cursor-pointer transition-all duration-200 select-none ${
           className
             ? className
-            : 'w-full px-4 py-2.5 bg-white/80 dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 text-slate-900 dark:text-white rounded-xl sm:rounded-2xl text-sm backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(0,0,0,0.04),0_1px_0_rgba(255,255,255,0.06)]'
+            : 'w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-white/80 dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 text-slate-900 dark:text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm backdrop-blur-xl shadow-[inset_0_1px_1px_rgba(0,0,0,0.04),0_1px_0_rgba(255,255,255,0.06)]'
         } ${
           open
             ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
             : 'hover:border-slate-300 dark:hover:border-white/20'
         } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <div className="flex items-center gap-2 truncate min-w-0">
-          {LeftIcon && <LeftIcon size={16} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />}
-          <span className={`truncate text-sm ${selectedOption ? 'text-inherit font-medium' : 'text-slate-400'}`}>
+        <div className="flex items-center gap-1 sm:gap-1.5 truncate min-w-0 flex-1">
+          {LeftIcon && <LeftIcon size={14} className="text-blue-500 dark:text-blue-400 flex-shrink-0" />}
+          <span className={`hidden sm:inline truncate text-xs sm:text-sm ${selectedOption ? 'text-inherit font-medium' : 'text-slate-400'}`}>
             {displayLabel}
+          </span>
+          <span className={`sm:hidden truncate text-[11px] ${selectedOption ? 'text-inherit font-medium' : 'text-slate-400'}`}>
+            {mobileLabel}
           </span>
         </div>
         <ChevronDown
-          size={16}
-          className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ${
+          size={13}
+          className={`text-slate-400 flex-shrink-0 transition-transform duration-200 ml-1 ${
             open ? 'rotate-180 text-blue-500 dark:text-blue-400' : ''
           }`}
         />
@@ -158,14 +172,14 @@ export default function CustomSelect({
                       key={opt.value}
                       disabled={opt.disabled}
                       onClick={() => handleSelect(opt.value)}
-                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-sm transition-all duration-150 text-left ${
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm transition-all duration-150 text-left ${
                         isSelected
                           ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/25'
                           : 'text-slate-200 hover:bg-white/[0.08] hover:text-white'
                       } ${opt.disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <span className="truncate">{opt.label}</span>
-                      {isSelected && <Check size={15} className="text-white flex-shrink-0" />}
+                      {isSelected && <Check size={14} className="text-white flex-shrink-0" />}
                     </button>
                   );
                 })

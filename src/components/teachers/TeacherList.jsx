@@ -913,36 +913,43 @@ export default function TeacherList() {
         </div>
       </div>
 
-      {/* Filters - Compact on mobile with side-by-side selects */}
-      <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-2.5 sm:p-4 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+      {/* Filters: 70% Search Bar & 30% Class / Section Filters */}
+      <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 w-full">
+          {/* 70% Search Bar */}
+          <div className="w-[68%] sm:w-[70%] flex-shrink-0 min-w-0 relative">
+            <Search size={15} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search teacher by name, email, subject..."
+              placeholder="Search teachers..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="input-field pl-10 py-2 sm:py-2.5 text-xs sm:text-sm"
+              className="input-field pl-8 sm:pl-10 py-2 sm:py-2.5 text-xs sm:text-sm w-full truncate"
             />
           </div>
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
-            <CustomSelect
-              value={classFilter}
-              onChange={e => setClassFilter(e.target.value)}
-              className="input-field w-full sm:w-auto py-2 sm:py-2.5 text-xs sm:text-sm"
-            >
-              <option value="all">All Classes</option>
-              {Array.from(new Set([...(students || []).map(s => s.class), '8', '9', '10'])).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(c => <option key={c} value={c}>Class {c}</option>)}
-            </CustomSelect>
-            <CustomSelect
-              value={sectionFilter}
-              onChange={e => setSectionFilter(e.target.value)}
-              className="input-field w-full sm:w-auto py-2 sm:py-2.5 text-xs sm:text-sm"
-            >
-              <option value="all">All Sections</option>
-              {Array.from(new Set([...(students || []).map(s => s.section), 'A', 'B'])).sort().map(s => <option key={s} value={s}>Section {s}</option>)}
-            </CustomSelect>
+
+          {/* 30% Dropdown Selectors */}
+          <div className="w-[32%] sm:w-[30%] flex-1 min-w-0 flex items-center gap-1 sm:gap-1.5">
+            <div className="flex-1 min-w-0">
+              <CustomSelect
+                value={classFilter}
+                onChange={e => setClassFilter(e.target.value)}
+                className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
+              >
+                <option value="all">All Classes</option>
+                {Array.from(new Set([...(students || []).map(s => s.class), '8', '9', '10'])).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(c => <option key={c} value={c}>Class {c}</option>)}
+              </CustomSelect>
+            </div>
+            <div className="flex-1 min-w-0">
+              <CustomSelect
+                value={sectionFilter}
+                onChange={e => setSectionFilter(e.target.value)}
+                className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
+              >
+                <option value="all">All Sections</option>
+                {Array.from(new Set([...(students || []).map(s => s.section), 'A', 'B'])).sort().map(s => <option key={s} value={s}>Section {s}</option>)}
+              </CustomSelect>
+            </div>
           </div>
         </div>
       </div>

@@ -575,54 +575,62 @@ export default function StudentList() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="rounded-2xl bg-white dark:bg-[#0B0F19]/80 border border-slate-200 dark:border-white/10 p-3.5 sm:p-4 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
-        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+      {/* Filters: 70% Search Bar & 30% Class / Section Selectors */}
+      <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 w-full">
+          {/* 70% Search Bar */}
+          <div className="w-[68%] sm:w-[70%] flex-shrink-0 min-w-0 relative">
+            <Search size={15} className="absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search by name, roll number..."
+              placeholder="Search by name, roll..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="input-field pl-10"
+              className="input-field pl-8 sm:pl-10 py-2 sm:py-2.5 text-xs sm:text-sm w-full truncate"
             />
           </div>
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
-            <CustomSelect
-              value={classFilter}
-              onChange={e => setClassFilter(e.target.value)}
-              className="input-field w-full sm:w-auto"
-            >
-              <option value="all">All Classes ({students.length})</option>
-              {availableClasses.map(c => {
-                const count = students.filter(s => String(s.class) === String(c)).length;
-                return (
-                  <option key={c} value={c}>
-                    Class {c} ({count}) {isTeacher && c === teacherClass ? '★ (My Class)' : ''}
-                  </option>
-                );
-              })}
-            </CustomSelect>
-            <CustomSelect
-              value={sectionFilter}
-              onChange={e => setSectionFilter(e.target.value)}
-              className="input-field w-full sm:w-auto"
-            >
-              <option value="all">All Sections</option>
-              {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
-            </CustomSelect>
+
+          {/* 30% Dropdown Selectors */}
+          <div className="w-[32%] sm:w-[30%] flex-1 min-w-0 flex items-center gap-1 sm:gap-1.5">
+            <div className="flex-1 min-w-0">
+              <CustomSelect
+                value={classFilter}
+                onChange={e => setClassFilter(e.target.value)}
+                className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
+              >
+                <option value="all">All Classes ({students.length})</option>
+                {availableClasses.map(c => {
+                  const count = students.filter(s => String(s.class) === String(c)).length;
+                  return (
+                    <option key={c} value={c}>
+                      Class {c} ({count}) {isTeacher && c === teacherClass ? '★' : ''}
+                    </option>
+                  );
+                })}
+              </CustomSelect>
+            </div>
+            <div className="flex-1 min-w-0">
+              <CustomSelect
+                value={sectionFilter}
+                onChange={e => setSectionFilter(e.target.value)}
+                className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
+              >
+                <option value="all">All Sections</option>
+                {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
+              </CustomSelect>
+            </div>
+            {!isTeacher && classFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setDeleteClassModalOpen(true)}
+                className="p-2 sm:px-2.5 sm:py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all flex items-center justify-center flex-shrink-0 cursor-pointer"
+                title={`Delete Class ${classFilter} and all its students`}
+                aria-label={`Delete Class ${classFilter}`}
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
           </div>
-          {!isTeacher && classFilter !== 'all' && (
-            <button
-              onClick={() => setDeleteClassModalOpen(true)}
-              className="px-3 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
-              title={`Delete Class ${classFilter} and all its students`}
-            >
-              <Trash2 size={13} />
-              <span>Delete Class {classFilter}</span>
-            </button>
-          )}
         </div>
       </div>
 
