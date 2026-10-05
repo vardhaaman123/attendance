@@ -598,7 +598,7 @@ export default function StudentList() {
                 onChange={e => setClassFilter(e.target.value)}
                 className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
               >
-                <option value="all">All Classes ({students.length})</option>
+                <option value="all">Classes ({students.length})</option>
                 {availableClasses.map(c => {
                   const count = students.filter(s => String(s.class) === String(c)).length;
                   return (
@@ -615,7 +615,7 @@ export default function StudentList() {
                 onChange={e => setSectionFilter(e.target.value)}
                 className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
               >
-                <option value="all">All Sections</option>
+                <option value="all">Section</option>
                 {availableSections.map(s => <option key={s} value={s}>Section {s}</option>)}
               </CustomSelect>
             </div>

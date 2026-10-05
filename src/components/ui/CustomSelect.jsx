@@ -61,15 +61,19 @@ export default function CustomSelect({
     if (!selectedOption) return placeholder;
     const full = extractText(selectedOption.label || selectedOption.value);
     // Remove (count) from trigger button, e.g. "Class 9 (12)" -> "Class 9"
-    // "All Classes (24)" -> "All Classes"
-    const cleaned = full.replace(/\s*\(\d+\)\s*/g, '').trim();
+    // "Classes (24)" -> "Classes"
+    // "All Classes (24)" -> "Classes"
+    let cleaned = full.replace(/\s*\(\d+\)\s*/g, '').trim();
+    if (cleaned === 'All Classes') cleaned = 'Classes';
+    if (cleaned === 'All Sections' || cleaned === 'All Section' || cleaned === 'All Sec') cleaned = 'Section';
     return cleaned || full;
   }, [selectedOption, placeholder]);
 
   // Compact mobile label
   const mobileTriggerLabel = useMemo(() => {
     const str = triggerLabel;
-    if (str === 'All Sections') return 'All Sec';
+    if (str === 'All Classes') return 'Classes';
+    if (str === 'All Sections' || str === 'All Sec') return 'Section';
     if (str.startsWith('Section ')) return str.replace('Section ', 'Sec ');
     return str;
   }, [triggerLabel]);

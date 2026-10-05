@@ -936,7 +936,7 @@ export default function TeacherList() {
                 onChange={e => setClassFilter(e.target.value)}
                 className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
               >
-                <option value="all">All Classes</option>
+                <option value="all">Classes</option>
                 {Array.from(new Set([...(students || []).map(s => s.class), '8', '9', '10'])).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(c => <option key={c} value={c}>Class {c}</option>)}
               </CustomSelect>
             </div>
@@ -946,7 +946,7 @@ export default function TeacherList() {
                 onChange={e => setSectionFilter(e.target.value)}
                 className="input-field w-full py-2 sm:py-2.5 px-2 sm:px-3 text-xs sm:text-sm"
               >
-                <option value="all">All Sections</option>
+                <option value="all">Section</option>
                 {Array.from(new Set([...(students || []).map(s => s.section), 'A', 'B'])).sort().map(s => <option key={s} value={s}>Section {s}</option>)}
               </CustomSelect>
             </div>

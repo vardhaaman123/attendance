@@ -322,7 +322,7 @@ export default function AttendanceHistory() {
             onChange={e => { setClassFilter(e.target.value); setPage(1); }}
             className="input-field w-auto text-xs py-1.5"
           >
-            <option value="all">All Classes</option>
+            <option value="all">Classes</option>
             {availableClasses.map(c => (
               <option key={c} value={c}>Class {c}</option>
             ))}
@@ -334,7 +334,7 @@ export default function AttendanceHistory() {
             onChange={e => { setSectionFilter(e.target.value); setPage(1); }}
             className="input-field w-auto text-xs py-1.5"
           >
-            <option value="all">All Sections</option>
+            <option value="all">Section</option>
             {availableSections.map(s => (
               <option key={s} value={s}>Section {s}</option>
             ))}
