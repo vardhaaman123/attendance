@@ -305,19 +305,10 @@ export default function Settings() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-shrink-0">
-          <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-500/20">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-500/20">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             Verified Administrator
           </span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-rose-500 hover:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/30 transition-all duration-200 cursor-pointer shadow-xs active:scale-95 backdrop-blur-md"
-            title="Logout from administrator account"
-          >
-            <LogOut size={14} className="text-rose-500" />
-            <span>Logout</span>
-          </button>
         </div>
       </div>
 
