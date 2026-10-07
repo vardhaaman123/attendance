@@ -1,17 +1,113 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" style="background-color: #06080E; color-scheme: dark;">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#06080E" />
+    <meta name="color-scheme" content="dark" />
     <meta name="description" content="Attendify - Smart School Attendance Management System" />
     <title>Attendify — Smart School Attendance</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #06080E !important;
+        color: #f8fafc;
+        color-scheme: dark;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        overflow-x: hidden;
+      }
+      #root {
+        width: 100%;
+        min-height: 100%;
+        background-color: #06080E;
+      }
+      @keyframes apple-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .apple-loader-wrap {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #06080E;
+        z-index: 9999;
+        user-select: none;
+      }
+      .apple-glow {
+        position: absolute;
+        width: 250px;
+        height: 250px;
+        border-radius: 9999px;
+        background: rgba(37, 99, 235, 0.1);
+        filter: blur(90px);
+        pointer-events: none;
+      }
+      .apple-hud {
+        position: relative;
+        padding: 24px 28px;
+        border-radius: 24px;
+        background: rgba(11, 15, 26, 0.8);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        box-sizing: border-box;
+      }
+      .apple-spinner {
+        width: 34px;
+        height: 34px;
+        color: #3b82f6;
+        animation: apple-spin 0.9s linear infinite;
+        will-change: transform;
+      }
+      .apple-label {
+        font-size: 12px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        color: #cbd5e1;
+        margin: 0;
+        text-align: center;
+      }
+    </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin: 0; padding: 0; background-color: #06080E !important;">
+    <div id="root">
+      <!-- Instant Apple-inspired pre-rendered loading screen (eliminates blank white page) -->
+      <div class="apple-loader-wrap">
+        <div class="apple-glow"></div>
+        <div class="apple-hud">
+          <svg class="apple-spinner" viewBox="0 0 24 24" fill="none">
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="1.00" transform="rotate(0 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.92" transform="rotate(30 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.84" transform="rotate(60 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.75" transform="rotate(90 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.67" transform="rotate(120 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.58" transform="rotate(150 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.50" transform="rotate(180 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.42" transform="rotate(210 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.33" transform="rotate(240 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.25" transform="rotate(270 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.17" transform="rotate(300 12 12)" />
+            <line x1="12" y1="2.5" x2="12" y2="6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" opacity="0.10" transform="rotate(330 12 12)" />
+          </svg>
+          <p class="apple-label">Loading...</p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

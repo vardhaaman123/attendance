@@ -63,8 +63,13 @@ export default {
         'float': 'float 7s ease-in-out infinite',
         'float-slow': 'float 11s ease-in-out infinite',
         'pulse-subtle': 'pulseSubtle 3s ease-in-out infinite',
+        'shimmer': 'shimmer 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(250%)' },
+        },
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },

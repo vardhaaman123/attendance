@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { initializeSeedData } from './data/seedData';
 
 import ErrorBoundary from './components/ui/ErrorBoundary';
+import LoadingScreen from './components/ui/LoadingScreen';
 import AppLayout from './components/layout/AppLayout';
 import RoleSelectorPage from './components/auth/RoleSelectorPage';
 import LoginPage from './components/auth/LoginPage';
@@ -44,18 +45,6 @@ function SeedInitializer({ children }) {
   return children;
 }
 
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#06080E] relative overflow-hidden select-none">
-      <div className="absolute w-96 h-96 rounded-full bg-blue-600/10 blur-[120px] pointer-events-none" />
-      <div className="relative px-7 py-6 rounded-3xl bg-[#0B0F1A]/85 backdrop-blur-2xl border border-white/10 shadow-[0_16px_40px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.15)] flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-400 rounded-full animate-spin" />
-        <p className="text-xs font-medium text-slate-300 tracking-wide">Loading Attendify...</p>
-      </div>
-    </div>
-  );
-}
-
 // Any logged-in user (admin, teacher, or student)
 function PrivateRoute({ children }) {
   const { role, loading } = useAuth();
@@ -87,6 +76,13 @@ function StaffRoute({ children }) {
   if (loading) return <LoadingScreen />;
   if (role === 'student') return <Navigate to="/student-dashboard" replace />;
   return children;
+}
+
+// Marks route: redirected since Marks option is removed
+function MarksRoute() {
+  const { role, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  return <Navigate to={role === 'student' ? '/student-dashboard' : '/dashboard'} replace />;
 }
 
 // Redirect already-logged-in users away from login pages
@@ -123,7 +119,7 @@ export default function App() {
                     {/* Student-only pages */}
                     <Route path="student-dashboard" element={<StudentDashboard />} />
                     <Route path="my-profile"        element={<StudentProfile />} />
-                    <Route path="my-marks"          element={<StudentMarks />} />
+                    <Route path="my-marks"          element={<Navigate to="/student-dashboard" replace />} />
                     <Route path="my-password"       element={<StudentPassword />} />
 
 
@@ -136,7 +132,7 @@ export default function App() {
                     <Route path="students"   element={<StaffRoute><StudentList /></StaffRoute>} />
                     <Route path="history"           element={<StaffRoute><AttendanceHistory /></StaffRoute>} />
                     <Route path="reports"           element={<StaffRoute><Reports /></StaffRoute>} />
-                    <Route path="marks"             element={<StaffRoute><Marks /></StaffRoute>} />
+                    <Route path="marks"             element={<MarksRoute />} />
                     <Route path="teacher-password"  element={<StaffRoute><TeacherPassword /></StaffRoute>} />
 
                     {/* Admin-only */}

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getUserLookup } from '../../services/firestoreService';
 import { Eye, EyeOff, ShieldCheck, ShieldAlert } from 'lucide-react';
 import PasswordRequirements, { validatePasswordRules } from '../ui/PasswordRequirements';
+import { getTeacherScope } from '../../utils/teacherScope';
 
 const empty = {
   rollNumber: '',
@@ -22,14 +23,19 @@ export default function AddEditStudentModal({ open, student, onClose, onStudentS
   const { students, teachers = [], addStudent, updateStudent, addToast } = useApp();
   const { role, user } = useAuth();
   const isTeacher = role === 'teacher';
+  const teacherScope = getTeacherScope(user, role);
 
-  const classSuggestions = Array.from(
-    new Set([...students.map(s => s.class), ...teachers.map(t => t.class), '8', '9', '10'])
-  ).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const classSuggestions = isTeacher && teacherScope.allowedClasses.length > 0
+    ? teacherScope.allowedClasses
+    : Array.from(
+        new Set([...students.map(s => s.class), ...teachers.map(t => t.class), '8', '9', '10'])
+      ).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-  const sectionSuggestions = Array.from(
-    new Set([...students.map(s => s.section), ...teachers.map(t => t.section), 'A', 'B', 'C'])
-  ).filter(Boolean).sort();
+  const sectionSuggestions = isTeacher && teacherScope.allowedSections.length > 0
+    ? teacherScope.allowedSections
+    : Array.from(
+        new Set([...students.map(s => s.section), ...teachers.map(t => t.section), 'A', 'B', 'C'])
+      ).filter(Boolean).sort();
 
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState({});
@@ -61,12 +67,12 @@ export default function AddEditStudentModal({ open, student, onClose, onStudentS
     } else {
       setForm({
         ...empty,
-        class: isTeacher && user?.class ? String(user.class) : (teachers[0]?.class ? String(teachers[0].class) : '10'),
-        section: isTeacher && user?.section ? String(user.section).toUpperCase() : (teachers[0]?.section ? String(teachers[0].section).toUpperCase() : 'A'),
+        class: isTeacher && teacherScope.defaultClass ? teacherScope.defaultClass : (teachers[0]?.class ? String(teachers[0].class) : '8'),
+        section: isTeacher && teacherScope.defaultSection ? teacherScope.defaultSection : (teachers[0]?.section ? String(teachers[0].section).toUpperCase() : 'A'),
       });
     }
     setErrors({});
-  }, [student, liveStudent?.id, liveStudent?.password, open, isTeacher, user, teachers]);
+  }, [student, liveStudent?.id, liveStudent?.password, open, isTeacher, user, teachers, teacherScope.defaultClass, teacherScope.defaultSection]);
 
   const set = (k, v) => {
     setForm(f => ({ ...f, [k]: v }));
@@ -174,8 +180,8 @@ export default function AddEditStudentModal({ open, student, onClose, onStudentS
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 flex items-center justify-between">
               <span>Class</span>
-              {isTeacher && user?.class && (
-                <span className="text-[10px] text-blue-400 font-medium">Assigned: Class {user.class}</span>
+              {isTeacher && teacherScope.allowedClasses.length > 0 && (
+                <span className="text-[10px] text-blue-400 font-medium">Assigned: Class {teacherScope.allowedClasses.join(', ')}</span>
               )}
             </label>
             <input
@@ -192,8 +198,8 @@ export default function AddEditStudentModal({ open, student, onClose, onStudentS
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5 flex items-center justify-between">
               <span>Section / Division</span>
-              {isTeacher && user?.section && (
-                <span className="text-[10px] text-blue-400 font-medium">Assigned: {user.section}</span>
+              {isTeacher && teacherScope.allowedSections.length > 0 && (
+                <span className="text-[10px] text-blue-400 font-medium">Assigned: {teacherScope.allowedSections.join(', ')}</span>
               )}
             </label>
             <input

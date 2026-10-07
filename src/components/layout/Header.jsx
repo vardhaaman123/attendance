@@ -66,7 +66,7 @@ export default function Header({ onMenuOpen }) {
   }, [notifications]);
 
   return (
-    <header className="h-16 w-full max-w-full bg-[#0B0F1A]/70 backdrop-blur-2xl border-b border-white/10 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 no-print flex-shrink-0 z-20 shadow-[0_4px_24px_rgba(0,0,0,0.3)] select-none">
+    <header className="h-16 w-full max-w-full bg-[#0B0F1A]/70 backdrop-blur-2xl border-b border-white/10 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4 no-print flex-shrink-0 relative z-40 shadow-[0_4px_24px_rgba(0,0,0,0.3)] select-none">
       {/* Mobile menu button */}
       <button
         type="button"
@@ -100,8 +100,8 @@ export default function Header({ onMenuOpen }) {
 
           {notifOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setNotifOpen(false)} />
-              <div className="absolute right-0 top-full mt-2.5 w-[min(calc(100vw-1.5rem),340px)] bg-[#0B0F1A]/90 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.12)] border border-white/15 z-20 overflow-hidden animate-popover-in backdrop-blur-3xl">
+              <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+              <div className="absolute right-0 top-full mt-2.5 w-[min(calc(100vw-1.5rem),340px)] bg-[#0B0F1A]/95 rounded-3xl shadow-[0_24px_60px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)] border border-white/15 z-50 overflow-hidden animate-popover-in backdrop-blur-3xl">
                 <div className="px-4 py-3.5 border-b border-white/10 flex items-center justify-between">
                   <p className="text-xs font-semibold text-white tracking-wide">Notifications</p>
                   {unreadCount > 0 && (

@@ -26,6 +26,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { getUserIdentities, isMessageUnreadForUser } from '../../utils/messageUtils';
 import { useApp } from '../../context/AppContext';
+import { getTeacherScope } from '../../utils/teacherScope';
 import {
   getTodayStats,
   getLowAttendanceStudents,
@@ -99,16 +100,33 @@ export default function Dashboard() {
       .join(' ');
   }, [rawCollegeName]);
 
+  const teacherScope = useMemo(() => getTeacherScope(user, role), [user, role]);
+
+  // Scoped students for teachers
+  const scopedStudents = useMemo(() => {
+    if (role === 'teacher' && teacherScope.isRestricted) {
+      return teacherScope.filterStudents(students);
+    }
+    return students;
+  }, [students, role, teacherScope]);
+
   // Filter by class pill (null = All Classes)
-  const [filterClass, setFilterClass] = useState(role === 'teacher' && user?.class ? String(user.class) : 'all');
+  const [filterClass, setFilterClass] = useState(() => {
+    if (role === 'teacher' && teacherScope.allowedClasses.length > 0) {
+      return teacherScope.defaultClass;
+    }
+    return 'all';
+  });
   const [chartView, setChartView] = useState('weekly'); // 'weekly' | 'classes'
   const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth < 640 : false));
 
   useEffect(() => {
-    if (role === 'teacher' && user?.class && filterClass === 'all') {
-      setFilterClass(String(user.class));
+    if (role === 'teacher' && teacherScope.isRestricted) {
+      if (teacherScope.allowedClasses.length > 0 && filterClass !== 'all' && !teacherScope.isClassAllowed(filterClass)) {
+        setFilterClass(teacherScope.defaultClass);
+      }
     }
-  }, [role, user?.class, filterClass]);
+  }, [role, teacherScope, filterClass]);
 
   // Auto-fetch data without requiring full page reload
   useEffect(() => {
@@ -124,13 +142,17 @@ export default function Dashboard() {
 
   // Filter students based on selected class
   const activeStudents = useMemo(() => {
-    if (filterClass === 'all') return students;
-    return students.filter((s) => String(s.class || '').trim() === String(filterClass || '').trim());
-  }, [students, filterClass]);
+    if (filterClass === 'all') return scopedStudents;
+    const cleanFilter = String(filterClass || '').trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '');
+    return scopedStudents.filter((s) => {
+      const cleanS = String(s.class || '').trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '');
+      return cleanS === cleanFilter;
+    });
+  }, [scopedStudents, filterClass]);
 
   const todayStats = useMemo(() => getTodayStats(activeStudents, attendanceRecords), [activeStudents, attendanceRecords]);
   const weeklyData = useMemo(() => getWeeklyData(activeStudents, attendanceRecords), [activeStudents, attendanceRecords]);
-  const classComparison = useMemo(() => getClassComparison(students, attendanceRecords), [students, attendanceRecords]);
+  const classComparison = useMemo(() => getClassComparison(scopedStudents, attendanceRecords), [scopedStudents, attendanceRecords]);
   const lowAttendance = useMemo(() => getLowAttendanceStudents(activeStudents, attendanceRecords), [activeStudents, attendanceRecords]);
 
   // Yesterday rate calculation for trend
@@ -269,18 +291,24 @@ export default function Dashboard() {
         </div>
 
         {/* Bottom Row: Apple Segmented Class Filter & Live Status */}
-        <div className="pt-3 border-t border-slate-100 dark:border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="pt-2.5 sm:pt-3 border-t border-slate-100 dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-2.5">
           {/* Segmented Class Filter Pills */}
-          <div className="inline-flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 backdrop-blur-xl gap-1 overflow-x-auto no-scrollbar max-w-full">
-            {[
-              { id: 'all', label: 'All Classes' },
-              ...Array.from(new Set([...students.map(s => s.class), '8', '9', '10'])).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(c => ({ id: c, label: `Class ${c}` }))
-            ].map((pill) => (
+          <div className="inline-flex items-center w-fit self-start shrink-0 p-1 rounded-xl bg-slate-100/90 dark:bg-white/[0.04] border border-slate-200/80 dark:border-white/10 backdrop-blur-xl gap-1 overflow-x-auto no-scrollbar">
+            {(role === 'teacher' && teacherScope.isRestricted && teacherScope.allowedClasses.length > 0
+              ? (teacherScope.allowedClasses.length > 1
+                  ? [{ id: 'all', label: 'All My Classes' }, ...teacherScope.allowedClasses.map(c => ({ id: c, label: `Class ${c}` }))]
+                  : teacherScope.allowedClasses.map(c => ({ id: c, label: `Class ${c}` }))
+                )
+              : [
+                  { id: 'all', label: 'All Classes' },
+                  ...Array.from(new Set([...students.map(s => s.class), '8', '9', '10'])).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map(c => ({ id: c, label: `Class ${c}` }))
+                ]
+            ).map((pill) => (
               <button
                 key={pill.id}
                 type="button"
                 onClick={() => setFilterClass(pill.id)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                   filterClass === pill.id
                     ? 'bg-blue-600 text-white shadow-[0_1px_8px_rgba(37,99,235,0.4)]'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.06]'
@@ -292,7 +320,7 @@ export default function Dashboard() {
           </div>
 
           {/* Live Attendance Metric Pill */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100/80 dark:bg-white/[0.04] border border-slate-200/60 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300">
+          <div className="flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full bg-slate-100/80 dark:bg-white/[0.04] border border-slate-200/60 dark:border-white/10 text-xs font-semibold text-slate-700 dark:text-slate-300">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
             <span>{todayStats.total > 0 ? `${todayStats.percentage}% Present Today` : 'Live Sync Active'}</span>
             {todayStats.total > 0 && (
@@ -420,12 +448,24 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-3">
-            {Array.from(new Set([...students.map(s => String(s.class || '').trim()), '8', '9', '10'])).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true})).map((cls) => {
-              const classStudents = students.filter((s) => String(s.class || '').trim() === String(cls).trim());
-              const sectionStats = Array.from(new Set([...classStudents.map(s => String(s.section || '').trim().toUpperCase()), 'A', 'B'])).filter(Boolean).sort().map((section) => {
+            {(role === 'teacher' && teacherScope.isRestricted && teacherScope.allowedClasses.length > 0
+              ? teacherScope.allowedClasses
+              : Array.from(new Set([...students.map(s => String(s.class || '').trim()), '8', '9', '10'])).filter(Boolean).sort((a,b)=>a.localeCompare(b, undefined, {numeric: true}))
+            ).map((cls) => {
+              const cleanCls = String(cls).trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '');
+              const classStudents = scopedStudents.filter((s) => {
+                const sCls = String(s.class || '').trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '');
+                return sCls === cleanCls;
+              });
+
+              const availableSecs = (role === 'teacher' && teacherScope.isRestricted && teacherScope.allowedSections.length > 0)
+                ? teacherScope.allowedSections
+                : Array.from(new Set([...classStudents.map(s => String(s.section || '').trim().toUpperCase()), 'A', 'B'])).filter(Boolean).sort();
+
+              const sectionStats = availableSecs.map((section) => {
                 const secStudents = classStudents.filter((s) => String(s.section || '').trim().toUpperCase() === String(section).trim().toUpperCase());
                 const today = new Date().toISOString().split('T')[0];
-                const key = `${today}_${cls}_${section}`;
+                const key = `${today}_${cleanCls}_${section}`;
                 const record = attendanceRecords[key];
                 const isMarked = !!record;
                 const present = record

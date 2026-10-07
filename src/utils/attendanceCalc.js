@@ -88,6 +88,11 @@ export function calcStudentAttendancePercentage(studentOrId, allRecords = {}) {
         possibleKeys.push(r.replace(/^0+/, ''));
       }
     }
+    if (studentOrId.email) possibleKeys.push(studentOrId.email.trim().toLowerCase());
+    if (studentOrId.name) {
+      possibleKeys.push(studentOrId.name.trim());
+      possibleKeys.push(studentOrId.name.trim().toLowerCase());
+    }
   } else if (studentOrId) {
     const str = String(studentOrId).trim();
     possibleKeys.push(str);
@@ -134,6 +139,11 @@ export function getStudentMonthlyCalendar(studentOrId, allRecords = {}, year, mo
         possibleKeys.push(r.replace(/^0+/, ''));
       }
     }
+    if (studentOrId.email) possibleKeys.push(studentOrId.email.trim().toLowerCase());
+    if (studentOrId.name) {
+      possibleKeys.push(studentOrId.name.trim());
+      possibleKeys.push(studentOrId.name.trim().toLowerCase());
+    }
   } else if (studentOrId) {
     const str = String(studentOrId).trim();
     possibleKeys.push(str);
@@ -141,14 +151,38 @@ export function getStudentMonthlyCalendar(studentOrId, allRecords = {}, year, mo
   }
   const cleanKeys = Array.from(new Set(possibleKeys.filter(Boolean)));
 
+  const normalizeDate = (raw) => {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+    if (ymd) return `${ymd[1]}-${String(ymd[2]).padStart(2, '0')}-${String(ymd[3]).padStart(2, '0')}`;
+    const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+    if (dmy) return `${dmy[3]}-${String(dmy[2]).padStart(2, '0')}-${String(dmy[1]).padStart(2, '0')}`;
+    try {
+      const parsed = new Date(s);
+      if (!isNaN(parsed.getTime())) {
+        return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+      }
+    } catch (_) {}
+    return null;
+  };
+
   const days = {};
   Object.values(allRecords).forEach(r => {
-    if (!r?.date || !r?.attendance) return;
-    const d = new Date(r.date);
-    if (d.getFullYear() === year && d.getMonth() === month) {
+    if (!r?.attendance) return;
+    const rawDate = r.date || (typeof r.id === 'string' && r.id.includes('_') ? r.id.split('_')[0] : r.id);
+    const dateKey = normalizeDate(rawDate);
+    if (!dateKey) return;
+
+    const [y, m] = dateKey.split('-').map(Number);
+    if (y === year && (m - 1) === month) {
       for (const k of cleanKeys) {
-        if (r.attendance[k] !== undefined) {
-          days[r.date] = r.attendance[k];
+        if (r.attendance[k] !== undefined && r.attendance[k] !== null && r.attendance[k] !== '') {
+          const val = String(r.attendance[k]).trim().toLowerCase();
+          const status = val === 'a' ? 'absent' : val === 'p' ? 'present' : val === 'l' ? 'late' : val;
+          if (!days[dateKey] || status === 'absent') {
+            days[dateKey] = status;
+          }
           break;
         }
       }

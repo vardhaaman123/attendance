@@ -963,7 +963,7 @@ export default function TeacherList() {
       </div>
 
       {/* Filters: Search Bar & Class / Section Filters */}
-      <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
+      <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-10">
         <div className="flex items-center gap-1.5 sm:gap-2.5 w-full">
           {/* Search Bar - fills available space */}
           <div className="flex-1 min-w-0 relative">

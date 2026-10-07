@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { filterValidExams } from '../utils/marksUtils';
+import { getTeacherScope } from '../utils/teacherScope';
 import {
   saveDoc,
   deleteDoc as fsDeleteDoc,
@@ -171,7 +172,43 @@ export function AppProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [selectedClass, setSelectedClass] = useState('10');
   const [selectedSection, setSelectedSection] = useState('A');
-  const [firestoreReady, setFirestoreReady] = useState(false);
+
+  // Enforce teacher assigned scope for selected class and section
+  useEffect(() => {
+    if (role === 'teacher' && user) {
+      const scope = getTeacherScope(user, role);
+      if (scope.isRestricted) {
+        if (scope.allowedClasses.length > 0 && !scope.isClassAllowed(selectedClass)) {
+          setSelectedClass(scope.defaultClass);
+        }
+        if (scope.allowedSections.length > 0 && !scope.isSectionAllowed(selectedSection)) {
+          setSelectedSection(scope.defaultSection);
+        }
+      }
+    }
+  }, [role, user, selectedClass, selectedSection]);
+  const [firestoreReady, setFirestoreReady] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (
+          window.localStorage.getItem('_attendify_students_cache') ||
+          window.localStorage.getItem('_attendify_teachers_cache') ||
+          window.localStorage.getItem('_attendify_attendance_cache')
+        ) {
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  });
+
+  // Fast safety fallback: ensure firestoreReady resolves smoothly within 350ms on any network
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      setFirestoreReady(true);
+    }, 350);
+    return () => clearTimeout(safetyTimer);
+  }, []);
   const [recentlyUpdatedTeacherId, setRecentlyUpdatedTeacherId] = useState(null);
   const [recentlyUpdatedStudentId, setRecentlyUpdatedStudentId] = useState(null);
   const [lastLiveSyncTime, setLastLiveSyncTime] = useState(null);

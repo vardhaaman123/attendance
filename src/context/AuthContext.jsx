@@ -34,36 +34,82 @@ import { validatePasswordRules } from '../components/ui/PasswordRequirements';
 const AuthContext = createContext({});
 
 // -- Session token lives in sessionStorage (disappears when browser closes)
-// The actual session DATA lives in Firestore.
+// The actual session DATA lives in Firestore and is cached locally for instant startup.
 const SESSION_TOKEN_KEY = '_attendify_sk';
+const AUTH_CACHE_KEY = '_attendify_auth_session';
+
+function getCachedAuth() {
+  try {
+    if (typeof window !== 'undefined') {
+      const raw = sessionStorage.getItem(AUTH_CACHE_KEY) || localStorage.getItem(AUTH_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.role) return parsed;
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
+function persistAuthSession(payload) {
+  try {
+    if (typeof window !== 'undefined') {
+      if (payload) {
+        const str = JSON.stringify(payload);
+        sessionStorage.setItem(AUTH_CACHE_KEY, str);
+        localStorage.setItem(AUTH_CACHE_KEY, str);
+      } else {
+        sessionStorage.removeItem(AUTH_CACHE_KEY);
+        localStorage.removeItem(AUTH_CACHE_KEY);
+      }
+    }
+  } catch (_) {}
+}
 
 function getOrCreateSessionKey() {
-  let key = sessionStorage.getItem(SESSION_TOKEN_KEY);
+  let key = sessionStorage.getItem(SESSION_TOKEN_KEY) || localStorage.getItem(SESSION_TOKEN_KEY);
   if (!key) {
     key = `sk_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     sessionStorage.setItem(SESSION_TOKEN_KEY, key);
+    localStorage.setItem(SESSION_TOKEN_KEY, key);
   }
   return key;
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser]               = useState(null);
-  const [role, setRole]               = useState(null);
-  const [currentStudent, setCurrentStudent] = useState(null);
-  const [activeCollegeId, setActiveCollegeId] = useState('dps_main');
-  const [loading, setLoading]         = useState(true);
+  const initialCache = getCachedAuth();
+  const [user, setUser]               = useState(() => initialCache?.user || null);
+  const [role, setRole]               = useState(() => initialCache?.role || null);
+  const [currentStudent, setCurrentStudent] = useState(() => initialCache?.currentStudent || null);
+  const [activeCollegeId, setActiveCollegeId] = useState(() => initialCache?.collegeId || 'dps_main');
+
+  // Instant fast startup:
+  // - If cached session exists: loading is FALSE immediately (0ms wait, no spinner flash)
+  // - If no session key exists (new/guest visitor): loading is FALSE immediately (0ms wait)
+  // - Only if an unhydrated session key is stored without cache do we briefly verify
+  const [loading, setLoading]         = useState(() => {
+    if (initialCache) return false;
+    if (typeof window !== 'undefined') {
+      const hasKey = sessionStorage.getItem(SESSION_TOKEN_KEY) || localStorage.getItem(SESSION_TOKEN_KEY);
+      if (!hasKey) return false;
+    }
+    return true;
+  });
 
   useEffect(() => {
     setActiveSchoolId(activeCollegeId || 'dps_main');
   }, [activeCollegeId]);
 
   useEffect(() => {
-    const sessionKey = getOrCreateSessionKey();
     let unsub = () => {};
 
     const restoreSession = async () => {
+      // ONLY query Firestore if a session key actually existed previously!
+      const existingKey = sessionStorage.getItem(SESSION_TOKEN_KEY) || localStorage.getItem(SESSION_TOKEN_KEY);
+      if (!existingKey) return false;
+
       try {
-        const session = await getSession(sessionKey);
+        const session = await getSession(existingKey);
         if (session && session.role) {
           const { role: savedRole, collegeId, _savedAt, ...rest } = session;
           const effectiveCollegeId = collegeId || 'dps_main';
@@ -72,12 +118,14 @@ export function AuthProvider({ children }) {
           if (savedRole === 'student') {
             setRole('student');
             setCurrentStudent(rest);
+            persistAuthSession({ role: 'student', collegeId: effectiveCollegeId, currentStudent: rest, user: null });
             setLoading(false);
             return true;
           }
           if (savedRole === 'teacher') {
             setRole('teacher');
             setUser(rest);
+            persistAuthSession({ role: 'teacher', collegeId: effectiveCollegeId, user: rest, currentStudent: null });
             setLoading(false);
             return true;
           }
@@ -92,6 +140,7 @@ export function AuthProvider({ children }) {
       const restored = await restoreSession();
       unsub = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
+          const sessionKey = getOrCreateSessionKey();
           let extra = {};
           try { const d = await getAdminByEmail(firebaseUser.email); if (d) extra = d; } catch (e) {}
           if (!extra.collegeName) {
@@ -123,9 +172,15 @@ export function AuthProvider({ children }) {
           setActiveSchoolId(effectiveCollegeId);
           setUser(u);
           setRole('admin');
+          persistAuthSession({ role: 'admin', collegeId: effectiveCollegeId, user: u, currentStudent: null });
           saveSession(sessionKey, { role: 'admin', collegeId: effectiveCollegeId, ...u }).catch(() => {});
         } else {
-          if (!restored) { setUser(null); setRole(null); }
+          if (!restored && !initialCache) {
+            setUser(null);
+            setRole(null);
+            setCurrentStudent(null);
+            persistAuthSession(null);
+          }
         }
         setLoading(false);
       });
@@ -174,6 +229,7 @@ export function AuthProvider({ children }) {
       };
       saveUserLookup(cleanEmail, { identifier: cleanEmail, role: 'admin', collegeId: effectiveCollegeId, collegeName: extra.collegeName || '', name: u.name, password }).catch(() => {});
       setUser(u); setRole('admin');
+      persistAuthSession({ role: 'admin', collegeId: effectiveCollegeId, user: u, currentStudent: null });
       await saveSession(sessionKey, { role: 'admin', collegeId: effectiveCollegeId, ...u });
       return { success: true, user: u };
     } catch (fbError) {
@@ -186,6 +242,7 @@ export function AuthProvider({ children }) {
           setActiveSchoolId(effectiveCollegeId);
           const u = { id: 'admin', uid: `admin_${cleanEmail.replace(/[^a-z0-9]/g, '_')}`, email: cleanEmail, name: adminDoc.principleName || adminDoc.name || 'Administrator', collegeName: adminDoc.collegeName || '', collegeId: effectiveCollegeId, role: 'Admin' };
           setUser(u); setRole('admin');
+          persistAuthSession({ role: 'admin', collegeId: effectiveCollegeId, user: u, currentStudent: null });
           await saveSession(sessionKey, { role: 'admin', collegeId: effectiveCollegeId, ...u });
           return { success: true, user: u };
         }
@@ -230,6 +287,7 @@ export function AuthProvider({ children }) {
     setActiveCollegeId(collegeId); setActiveSchoolId(collegeId);
     const u = { id: 'admin', uid: userCredential.user.uid, email: cleanEmail, name: (principleName||'').trim()||'Administrator', principleName: (principleName||'').trim(), collegeName: (collegeName||'').trim(), collegeId, role: 'Admin' };
     setUser(u); setRole('admin');
+    persistAuthSession({ role: 'admin', collegeId, user: u, currentStudent: null });
     await saveSession(sessionKey, { role: 'admin', collegeId, ...u });
     return { success: true, user: u };
   };
@@ -251,6 +309,7 @@ export function AuthProvider({ children }) {
       if (pwdToCheck && lookup.password && lookup.password !== pwdToCheck) return { success: false, error: 'Incorrect password. Please try again.' };
       const teacherObj = { id: lookup.entityId||lookup.id||`TCH_${Date.now()}`, name: lookup.name||'Teacher', email: cleanEmail, class: lookup.class||'', section: lookup.section||'', subject: lookup.subject||'', contact: lookup.contact||'', role: 'Teacher', collegeId: effectiveCollegeId, collegeName: lookup.collegeName||'', password: lookup.password };
       setActiveCollegeId(effectiveCollegeId); setActiveSchoolId(effectiveCollegeId); setRole('teacher'); setUser(teacherObj);
+      persistAuthSession({ role: 'teacher', collegeId: effectiveCollegeId, user: teacherObj, currentStudent: null });
       await saveSession(sessionKey, { role: 'teacher', collegeId: effectiveCollegeId, ...teacherObj });
       return { success: true, teacher: teacherObj, collegeId: effectiveCollegeId };
     }
@@ -277,6 +336,7 @@ export function AuthProvider({ children }) {
       const collegeId = matched.collegeId || activeCollegeId || 'dps_main';
       const teacherObj = { id: matched.id, name: matched.name, email: matched.email, class: matched.class, section: matched.section, subject: matched.subject||'', contact: matched.contact||'', role: 'Teacher', collegeId, password: matched.password };
       setActiveCollegeId(collegeId); setActiveSchoolId(collegeId); setRole('teacher'); setUser(teacherObj);
+      persistAuthSession({ role: 'teacher', collegeId, user: teacherObj, currentStudent: null });
       await saveSession(sessionKey, { role: 'teacher', collegeId, ...teacherObj });
       saveUserLookup(matched.email, { identifier: matched.email, role: 'teacher', collegeId, entityId: matched.id, name: matched.name, class: matched.class, section: matched.section, subject: matched.subject||'', contact: matched.contact||'', password: pwdToCheck || matched.password || 'teacher123' }).catch(console.warn);
       return { success: true, teacher: teacherObj, collegeId };
@@ -328,6 +388,7 @@ export function AuthProvider({ children }) {
       setActiveSchoolId(effectiveCollegeId);
       setRole('student');
       setCurrentStudent(studentObj);
+      persistAuthSession({ role: 'student', collegeId: effectiveCollegeId, user: null, currentStudent: studentObj });
       await saveSession(sessionKey, { role: 'student', collegeId: effectiveCollegeId, ...studentObj });
       return { success: true, student: studentObj, collegeId: effectiveCollegeId };
     }
@@ -370,6 +431,7 @@ export function AuthProvider({ children }) {
       setActiveSchoolId(collegeId);
       setRole('student');
       setCurrentStudent(matchedStudent);
+      persistAuthSession({ role: 'student', collegeId, user: null, currentStudent: matchedStudent });
       await saveSession(sessionKey, { role: 'student', collegeId, ...matchedStudent });
       const lookupBase = {
         role: 'student',
@@ -399,10 +461,14 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    const sessionKey = getOrCreateSessionKey();
+    const sessionKey = sessionStorage.getItem(SESSION_TOKEN_KEY) || localStorage.getItem(SESSION_TOKEN_KEY);
     try { await firebaseSignOut(auth); } catch (e) {}
-    await deleteSession(sessionKey).catch(() => {});
+    if (sessionKey) {
+      await deleteSession(sessionKey).catch(() => {});
+    }
     sessionStorage.removeItem(SESSION_TOKEN_KEY);
+    localStorage.removeItem(SESSION_TOKEN_KEY);
+    persistAuthSession(null);
     setUser(null); setRole(null); setCurrentStudent(null);
     setActiveCollegeId('dps_main'); setActiveSchoolId('dps_main');
   };

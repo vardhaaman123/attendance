@@ -3,6 +3,7 @@ import { Plus, Search, Edit2, Trash2, Eye, Download, Upload, MoreVertical, Key, 
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { calcStudentAttendancePercentage } from '../../utils/attendanceCalc';
+import { getTeacherScope } from '../../utils/teacherScope';
 import Modal from '../ui/Modal';
 import CustomSelect from '../ui/CustomSelect';
 import StudentProfileModal from './StudentProfileModal';
@@ -165,12 +166,21 @@ export default function StudentList() {
   const { students, saveStudents, deleteStudent, deleteMultipleStudents, deleteClass, attendanceRecords, addToast, refreshStudents, recentlyUpdatedStudentId } = useApp();
   const { role, user, activeCollegeId } = useAuth();
   const isTeacher = role === 'teacher';
-  const teacherClass = isTeacher && user?.class ? String(user.class) : null;
-  const teacherSection = isTeacher && user?.section ? String(user.section).toUpperCase() : null;
+  const teacherScope = useMemo(() => getTeacherScope(user, role), [user, role]);
 
   const [search, setSearch] = useState('');
-  const [classFilter, setClassFilter] = useState(() => (teacherClass || 'all'));
-  const [sectionFilter, setSectionFilter] = useState(() => (teacherSection || 'all'));
+  const [classFilter, setClassFilter] = useState(() => {
+    if (isTeacher && teacherScope.allowedClasses.length > 0) {
+      return teacherScope.defaultClass;
+    }
+    return 'all';
+  });
+  const [sectionFilter, setSectionFilter] = useState(() => {
+    if (isTeacher && teacherScope.allowedSections.length > 0) {
+      return teacherScope.defaultSection;
+    }
+    return 'all';
+  });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
@@ -237,32 +247,38 @@ export default function StudentList() {
     }
   }, [students.length, refreshStudents]);
 
-  // On initial mount, default teacher's filter to their assigned class once
-  const initialTeacherFilterSet = useRef(false);
+  // Synchronize teacher filter bounds if teacher assigned scope changes
   useEffect(() => {
-    if (isTeacher && !initialTeacherFilterSet.current) {
-      initialTeacherFilterSet.current = true;
-      if (teacherClass) setClassFilter(teacherClass);
-      if (teacherSection) setSectionFilter(teacherSection);
+    if (isTeacher && teacherScope.isRestricted) {
+      if (teacherScope.allowedClasses.length > 0 && classFilter !== 'all' && !teacherScope.isClassAllowed(classFilter)) {
+        setClassFilter(teacherScope.defaultClass);
+      }
+      if (teacherScope.allowedSections.length > 0 && sectionFilter !== 'all' && !teacherScope.isSectionAllowed(sectionFilter)) {
+        setSectionFilter(teacherScope.defaultSection);
+      }
     }
-  }, [isTeacher, teacherClass, teacherSection]);
+  }, [isTeacher, teacherScope, classFilter, sectionFilter]);
 
   const availableClasses = useMemo(() => {
-    const set = new Set(students.map(s => s.class).filter(Boolean));
-    if (teacherClass) set.add(teacherClass);
+    if (isTeacher && teacherScope.allowedClasses.length > 0) {
+      return teacherScope.allowedClasses;
+    }
+    const set = new Set(students.map(s => String(s.class || '').trim()).filter(Boolean));
     ['8', '9', '10'].forEach(c => set.add(c));
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [students, teacherClass]);
+  }, [isTeacher, teacherScope, students]);
 
   const availableSections = useMemo(() => {
-    const set = new Set(students.map(s => s.section).filter(Boolean));
-    if (teacherSection) set.add(teacherSection);
+    if (isTeacher && teacherScope.allowedSections.length > 0) {
+      return teacherScope.allowedSections;
+    }
+    const set = new Set(students.map(s => String(s.section || '').trim().toUpperCase()).filter(Boolean));
     ['A', 'B'].forEach(s => set.add(s));
     return Array.from(set).sort();
-  }, [students, teacherSection]);
+  }, [isTeacher, teacherScope, students]);
 
   const filtered = useMemo(() => {
-    let list = students;
+    let list = (isTeacher && teacherScope.isRestricted) ? teacherScope.filterStudents(students) : students;
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(s =>
@@ -271,10 +287,19 @@ export default function StudentList() {
         String(s.parentName || '').toLowerCase().includes(q)
       );
     }
-    if (classFilter !== 'all') list = list.filter(s => String(s.class) === String(classFilter));
-    if (sectionFilter !== 'all') list = list.filter(s => String(s.section).toUpperCase() === String(sectionFilter).toUpperCase());
+    if (classFilter !== 'all') {
+      const cleanFilter = String(classFilter).trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '');
+      list = list.filter(s => {
+        const cleanS = String(s.class || '').trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '');
+        return cleanS === cleanFilter;
+      });
+    }
+    if (sectionFilter !== 'all') {
+      const cleanSec = String(sectionFilter).trim().toUpperCase();
+      list = list.filter(s => String(s.section || '').trim().toUpperCase() === cleanSec);
+    }
     return [...list].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-  }, [students, search, classFilter, sectionFilter]);
+  }, [students, search, classFilter, sectionFilter, isTeacher, teacherScope]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -388,8 +413,8 @@ export default function StudentList() {
         };
 
         const effectiveCollege = user?.collegeId || activeCollegeId || 'dps_main';
-        const defaultClass = isTeacher && teacherClass ? teacherClass : (classFilter !== 'all' ? classFilter : '8');
-        const defaultSec = isTeacher && teacherSection ? teacherSection : (sectionFilter !== 'all' ? sectionFilter : 'A');
+        const defaultClass = isTeacher && teacherScope.defaultClass ? teacherScope.defaultClass : (classFilter !== 'all' ? classFilter : '8');
+        const defaultSec = isTeacher && teacherScope.defaultSection ? teacherScope.defaultSection : (sectionFilter !== 'all' ? sectionFilter : 'A');
 
         const newStudents = rows
           .map((row, i) => {
@@ -557,65 +582,67 @@ export default function StudentList() {
         </div>
       </div>
 
-      {/* Quick Class Switcher for Teachers */}
-      {isTeacher && teacherClass && (
+      {/* Quick Section/Class Switcher for Teachers */}
+      {isTeacher && teacherScope.isRestricted && (
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => { setClassFilter(teacherClass); setSectionFilter(teacherSection || 'all'); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-              classFilter === teacherClass
-                ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
-                : 'bg-white dark:bg-[#111726] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:text-white'
-            }`}
-          >
-            ★ My Class ({teacherClass}-{teacherSection}) (
-            {students.filter(s => String(s.class) === String(teacherClass)).length})
-          </button>
-          <button
-            type="button"
-            onClick={() => { setClassFilter('all'); setSectionFilter('all'); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-              classFilter === 'all'
-                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-500/20'
-                : 'bg-white dark:bg-[#111726] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:text-white'
-            }`}
-          >
-            All College Students ({students.length})
-          </button>
+          {teacherScope.allowedSections.length > 1 ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setSectionFilter('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                  sectionFilter === 'all'
+                    ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
+                    : 'bg-white dark:bg-[#111726] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:text-white'
+                }`}
+              >
+                All Sections ({teacherScope.filterStudents(students).length})
+              </button>
+              {teacherScope.allowedSections.map(sec => {
+                const count = teacherScope.filterStudents(students).filter(s => String(s.section || '').trim().toUpperCase() === sec).length;
+                return (
+                  <button
+                    key={sec}
+                    type="button"
+                    onClick={() => setSectionFilter(sec)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      sectionFilter === sec
+                        ? 'bg-blue-600 text-white border-blue-500 shadow-md shadow-blue-500/20'
+                        : 'bg-white dark:bg-[#111726] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10 hover:text-white'
+                    }`}
+                  >
+                    Section {sec} ({count})
+                  </button>
+                );
+              })}
+            </>
+          ) : (
+            <div className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              ★ Assigned: Class {teacherScope.allowedClasses.join(', ')} - Section {teacherScope.allowedSections.join(', ') || 'All'} ({teacherScope.filterStudents(students).length} Students)
+            </div>
+          )}
         </div>
       )}
 
-      {/* Helper Banner for Teacher if their assigned class has 0 students while other classes have students */}
-      {isTeacher && classFilter === teacherClass && filtered.length === 0 && students.length > 0 && (
-        <div className="rounded-2xl p-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-blue-500/10 border border-blue-500/20 text-xs text-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg animate-fade-in">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
-              <Sparkles size={16} />
-            </div>
-            <div>
-              <p className="font-semibold text-white">
-                No students currently enrolled in your assigned Class {teacherClass}-{teacherSection}.
-              </p>
-              <p className="text-slate-400 mt-0.5">
-                There {students.length === 1 ? 'is 1 student' : `are ${students.length} students`} enrolled in other college classes.
-              </p>
-            </div>
+      {/* Helper Banner for Teacher if their assigned class has 0 students */}
+      {isTeacher && teacherScope.isRestricted && filtered.length === 0 && (
+        <div className="rounded-2xl p-4 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-blue-500/10 border border-blue-500/20 text-xs text-blue-200 flex items-center gap-3 shadow-lg animate-fade-in">
+          <div className="w-8 h-8 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
+            <Sparkles size={16} />
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              type="button"
-              onClick={() => { setClassFilter('all'); setSectionFilter('all'); }}
-              className="btn-primary text-xs py-1.5 px-3.5 flex-1 sm:flex-none justify-center cursor-pointer whitespace-nowrap"
-            >
-              View All Students ({students.length})
-            </button>
+          <div>
+            <p className="font-semibold text-white">
+              No students found in your assigned Class {teacherScope.allowedClasses.join(', ')} (Section {teacherScope.allowedSections.join(', ') || 'All'}).
+            </p>
+            <p className="text-slate-400 mt-0.5">
+              Please contact your administrator or enroll new students using the "Enroll Student" button above.
+            </p>
           </div>
         </div>
       )}
 
       {/* Filters: Search Bar & Class / Section Selectors */}
-      <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-30">
+      <div className="rounded-2xl bg-white dark:bg-[#0B0F1A]/80 border border-slate-200/80 dark:border-white/10 p-2 sm:p-3 backdrop-blur-xl shadow-[0_4px_25px_rgba(0,0,0,0.3)] relative z-10">
         <div className="flex items-center gap-1.5 sm:gap-2.5 w-full">
           {/* Search Bar - fills available space */}
           <div className="flex-1 min-w-0 relative">
@@ -636,12 +663,15 @@ export default function StudentList() {
               onChange={e => setClassFilter(e.target.value)}
               className="input-field w-auto py-2 sm:py-2.5 px-2.5 sm:px-3.5 text-xs sm:text-sm whitespace-nowrap"
             >
-              <option value="all">Classes ({students.length})</option>
+              <option value="all">
+                {isTeacher && teacherScope.isRestricted ? `All Assigned (${teacherScope.filterStudents(students).length})` : `Classes (${students.length})`}
+              </option>
               {availableClasses.map(c => {
-                const count = students.filter(s => String(s.class) === String(c)).length;
+                const baseList = isTeacher && teacherScope.isRestricted ? teacherScope.filterStudents(students) : students;
+                const count = baseList.filter(s => String(s.class || '').trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '') === String(c).trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '')).length;
                 return (
                   <option key={c} value={c}>
-                    Class {c} ({count}) {isTeacher && c === teacherClass ? '★' : ''}
+                    Class {c} ({count}) {isTeacher && teacherScope.isClassAllowed(c) ? '★' : ''}
                   </option>
                 );
               })}

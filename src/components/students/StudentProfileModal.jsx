@@ -30,18 +30,27 @@ function MonthCalendar({ days, year, month }) {
         {cells.map((cell, i) => {
           if (!cell) return <div key={i} className="h-7" />;
 
+          const todayDateStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+          const isToday = cell.dateStr === todayDateStr;
+          let ringClass = '';
+          if (isToday) {
+            if (cell.status === 'absent') ringClass = 'ring-2 ring-red-500 shadow-[0_0_12px_rgba(239,68,68,0.6)]';
+            else if (cell.status === 'present') ringClass = 'ring-2 ring-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)]';
+            else ringClass = 'ring-1.5 ring-blue-500/80';
+          }
+
           const isHoliday = !!cell.holiday;
           let cellStyle = 'text-slate-300';
           let content = <span className="text-[9px]">{cell.day}</span>;
 
           if (cell.status === 'present') {
-            cellStyle = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold shadow-[0_0_8px_rgba(16,185,129,0.2)]';
+            cellStyle = 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/60 font-black shadow-[0_0_10px_rgba(16,185,129,0.25)]';
             content = 'P';
           } else if (cell.status === 'absent') {
-            cellStyle = 'bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold shadow-[0_0_8px_rgba(244,63,94,0.2)]';
+            cellStyle = 'bg-red-500/25 text-red-400 border border-red-500/70 font-black shadow-[0_0_10px_rgba(239,68,68,0.35)]';
             content = 'A';
           } else if (cell.status === 'late') {
-            cellStyle = 'bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold shadow-[0_0_8px_rgba(245,158,11,0.2)]';
+            cellStyle = 'bg-amber-500/20 text-amber-300 border border-amber-500/60 font-bold shadow-[0_0_8px_rgba(245,158,11,0.2)]';
             content = 'L';
           } else if (isHoliday) {
             cellStyle = 'bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold';
@@ -55,7 +64,7 @@ function MonthCalendar({ days, year, month }) {
             <div
               key={i}
               title={cell.holiday ? `${cell.holiday.name} (Holiday)` : cell.status || ''}
-              className={`h-7 flex items-center justify-center rounded text-[10px] ${cellStyle}`}
+              className={`h-7 flex items-center justify-center rounded text-[10px] ${cellStyle} ${ringClass}`}
             >
               {content}
             </div>

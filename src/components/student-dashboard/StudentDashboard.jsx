@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
@@ -26,14 +26,50 @@ import { useApp } from '../../context/AppContext';
 import { getIndianHoliday } from '../../utils/indianHolidays';
 import { getUserIdentities, isMessageTargetingMe, isMessageUnreadForUser } from '../../utils/messageUtils';
 
+// Helper to normalize any date input (YYYY-MM-DD, YYYY-M-D, DD-MM-YYYY, ISO) to standard YYYY-MM-DD
+function normalizeDateKey(raw) {
+  if (!raw) return null;
+  const str = String(raw).trim();
+  const ymd = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (ymd) {
+    return `${ymd[1]}-${String(ymd[2]).padStart(2, '0')}-${String(ymd[3]).padStart(2, '0')}`;
+  }
+  const dmy = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (dmy) {
+    return `${dmy[3]}-${String(dmy[2]).padStart(2, '0')}-${String(dmy[1]).padStart(2, '0')}`;
+  }
+  try {
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+      return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+    }
+  } catch (_) {}
+  return null;
+}
+
 export default function StudentDashboard() {
   const { currentStudent } = useAuth();
-  const { attendanceRecords, settings, messages, students, teachers, addToast } = useApp();
+  const {
+    attendanceRecords,
+    settings,
+    messages,
+    students,
+    teachers,
+    addToast,
+    refreshAttendance,
+    refreshStudents
+  } = useApp();
   const navigate = useNavigate();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDayInfo, setSelectedDayInfo] = useState(null);
   const [targetGoal, setTargetGoal] = useState(75); // Target percentage (75, 80, 85, 90)
+
+  // Ensure fresh attendance records and students are loaded on mount
+  useEffect(() => {
+    refreshAttendance?.();
+    refreshStudents?.();
+  }, [refreshAttendance, refreshStudents]);
 
   const todayStr = new Date().toLocaleDateString('en-IN', {
     weekday: 'long',
@@ -42,39 +78,182 @@ export default function StudentDashboard() {
     year: 'numeric',
   });
 
+  // Canonical local today's date formatted as YYYY-MM-DD
+  const todayDateStr = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }, []);
+
+  // Resolve the full live student profile from students array (or local cache)
+  const liveStudent = useMemo(() => {
+    if (!currentStudent) return null;
+    const pool = (Array.isArray(students) && students.length > 0) ? students : (() => {
+      try {
+        const cached = window.localStorage.getItem('_attendify_students_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (_) {}
+      return [];
+    })();
+
+    return pool.find((s) => {
+      const sId = String(s.id || s._docId || '');
+      const curId = String(currentStudent.id || currentStudent.entityId || currentStudent._docId || '');
+      if (sId && curId && sId === curId) return true;
+      if (currentStudent.rollNumber && s.rollNumber) {
+        const r1 = String(s.rollNumber).trim().toLowerCase();
+        const r2 = String(currentStudent.rollNumber).trim().toLowerCase();
+        if (r1 === r2 || r1.replace(/^0+/, '') === r2.replace(/^0+/, '')) return true;
+      }
+      if (currentStudent.email && s.email && s.email.trim().toLowerCase() === currentStudent.email.trim().toLowerCase()) return true;
+      if (currentStudent.name && s.name && s.name.trim().toLowerCase() === currentStudent.name.trim().toLowerCase()) {
+        if (!currentStudent.class || !s.class || String(currentStudent.class).trim().toLowerCase() === String(s.class).trim().toLowerCase()) {
+          return true;
+        }
+      }
+      return false;
+    }) || currentStudent;
+  }, [currentStudent, students]);
+
+  // Comprehensive keys that could have been used to mark this student in attendance
+  const allStudentKeys = useMemo(() => {
+    const keys = new Set();
+    [currentStudent, liveStudent].forEach((st) => {
+      if (!st) return;
+      if (st.id) {
+        keys.add(String(st.id));
+        keys.add(st.id);
+      }
+      if (st._docId) {
+        keys.add(String(st._docId));
+        keys.add(st._docId);
+      }
+      if (st.entityId) {
+        keys.add(String(st.entityId));
+        keys.add(st.entityId);
+      }
+      if (st.rollNumber !== undefined && st.rollNumber !== null) {
+        const r = String(st.rollNumber).trim();
+        if (r) {
+          keys.add(r);
+          keys.add(r.replace(/^0+/, ''));
+        }
+      }
+      if (st.email) {
+        keys.add(st.email.trim().toLowerCase());
+      }
+      if (st.name) {
+        keys.add(st.name.trim());
+        keys.add(st.name.trim().toLowerCase());
+      }
+    });
+    return Array.from(keys).filter(Boolean);
+  }, [currentStudent, liveStudent]);
+
   // Calculate overall student statistics
   const stats = useMemo(() => {
     let present = 0, absent = 0, late = 0;
     const dayMap = {};
-    const recordsList = Object.values(attendanceRecords).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let recordsObj = attendanceRecords || {};
+    if (!recordsObj || Object.keys(recordsObj).length === 0) {
+      try {
+        const cached = window.localStorage.getItem('_attendify_attendance_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object') recordsObj = parsed;
+        }
+      } catch (_) {}
+    }
+
+    const recordsList = Object.values(recordsObj).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const pool = (Array.isArray(students) && students.length > 0) ? students : (() => {
+      try {
+        const cached = window.localStorage.getItem('_attendify_students_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (_) {}
+      return [];
+    })();
 
     const getStatusForStudent = (rec) => {
-      if (!rec?.attendance || !currentStudent) return null;
+      if (!rec?.attendance) return null;
       const att = rec.attendance;
-      const keys = [
-        currentStudent.id,
-        currentStudent.entityId,
-        currentStudent._docId,
-        currentStudent.rollNumber,
-        currentStudent.rollNumber ? String(currentStudent.rollNumber).trim() : null,
-        currentStudent.rollNumber ? String(currentStudent.rollNumber).trim().replace(/^0+/, '') : null,
-      ].filter(Boolean);
-      for (const k of keys) {
+
+      // 1. Direct key match in record.attendance
+      for (const k of allStudentKeys) {
         if (att[k] !== undefined && att[k] !== null && att[k] !== '') {
-          return att[k];
+          return String(att[k]).trim().toLowerCase();
         }
       }
+
+      // 2. Cross-match: check if any key in att maps to this student in students pool
+      for (const [k, val] of Object.entries(att)) {
+        if (!val) continue;
+        const s = pool.find((std) => String(std.id || std._docId) === String(k));
+        if (s) {
+          const matchRoll = liveStudent?.rollNumber && s.rollNumber &&
+            String(s.rollNumber).trim().toLowerCase() === String(liveStudent.rollNumber).trim().toLowerCase();
+          const matchEmail = liveStudent?.email && s.email &&
+            s.email.trim().toLowerCase() === liveStudent.email.trim().toLowerCase();
+          const matchId = (liveStudent?.id && String(s.id || s._docId) === String(liveStudent.id)) ||
+                          (liveStudent?.entityId && String(s.id || s._docId) === String(liveStudent.entityId));
+          const matchName = liveStudent?.name && s.name &&
+            s.name.trim().toLowerCase() === liveStudent.name.trim().toLowerCase();
+          if (matchRoll || matchEmail || matchId || matchName) {
+            return String(val).trim().toLowerCase();
+          }
+        }
+      }
+
+      // 3. Fallback match by key matching roll number, email, or name directly
+      for (const [k, val] of Object.entries(att)) {
+        if (!val) continue;
+        const cleanK = String(k).trim().toLowerCase();
+        for (const myKey of allStudentKeys) {
+          if (cleanK === String(myKey).trim().toLowerCase()) {
+            return String(val).trim().toLowerCase();
+          }
+        }
+      }
+
+      // 4. Fallback match by class and student name in that class
+      if (liveStudent?.class && rec.class && String(liveStudent.class).trim().toLowerCase() === String(rec.class).trim().toLowerCase()) {
+        for (const [k, val] of Object.entries(att)) {
+          if (!val) continue;
+          const s = pool.find((std) => String(std.id || std._docId) === String(k));
+          if (s && s.name && liveStudent.name && s.name.trim().toLowerCase() === liveStudent.name.trim().toLowerCase()) {
+            return String(val).trim().toLowerCase();
+          }
+        }
+      }
+
       return null;
     };
 
     recordsList.forEach((record) => {
-      const status = getStatusForStudent(record);
-      if (!status) return;
-      dayMap[record.date] = {
-        status,
-        markedBy: record.markedBy || 'Class Teacher',
-        section: record.section,
-      };
+      const rawStatus = getStatusForStudent(record);
+      if (!rawStatus) return;
+      const status = rawStatus === 'a' ? 'absent' : rawStatus === 'p' ? 'present' : rawStatus === 'l' ? 'late' : rawStatus;
+
+      const rawDate = record.date || (typeof record.id === 'string' && record.id.includes('_') ? record.id.split('_')[0] : record.id);
+      const dateKey = normalizeDateKey(rawDate);
+      if (!dateKey) return;
+
+      // When multiple records exist for this day, absent takes highest priority
+      if (!dayMap[dateKey] || status === 'absent' || (status === 'late' && dayMap[dateKey].status !== 'absent')) {
+        dayMap[dateKey] = {
+          status,
+          markedBy: record.markedBy || 'Class Teacher',
+          section: record.section,
+        };
+      }
+
       if (status === 'present') present++;
       else if (status === 'absent') absent++;
       else if (status === 'late') late++;
@@ -88,8 +267,9 @@ export default function StudentDashboard() {
     let currentStreak = 0;
     for (let i = recordsList.length - 1; i >= 0; i--) {
       const rec = recordsList[i];
-      const st = getStatusForStudent(rec);
-      if (!st) continue;
+      const raw = getStatusForStudent(rec);
+      if (!raw) continue;
+      const st = raw === 'a' ? 'absent' : raw === 'p' ? 'present' : raw === 'l' ? 'late' : raw;
       if (st === 'present' || st === 'late') {
         currentStreak++;
       } else {
@@ -98,7 +278,7 @@ export default function StudentDashboard() {
     }
 
     return { present, absent, late, total, attended, percentage, dayMap, currentStreak };
-  }, [attendanceRecords, currentStudent]);
+  }, [attendanceRecords, currentStudent, liveStudent, allStudentKeys, students]);
 
   // Target attendance / Safe Bunk calculation
   const targetCalc = useMemo(() => {
@@ -457,35 +637,48 @@ export default function StudentDashboard() {
               {calendarDays.days.map((day, i) => {
                 if (!day) return <div key={i} className="h-9 sm:h-11" />;
 
-                const isToday = day.dateStr === new Date().toISOString().split('T')[0];
+                const isToday = day.dateStr === todayDateStr;
                 const isSelected = selectedDayInfo?.dateStr === day.dateStr;
 
                 let tileBg = 'bg-[#111726]/60 text-slate-400 border-white/[0.04] hover:bg-[#161F34]';
+                let ringClass = '';
+                let textClass = 'text-slate-300 font-medium';
                 let indicator = null;
 
-                if (day.holiday) {
-                  tileBg = 'bg-purple-500/15 border-purple-500/30 text-purple-300 font-bold';
-                  indicator = <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />;
+                // Priority: Recorded attendance status takes precedence over generic holiday
+                if (day.status === 'absent') {
+                  tileBg = 'bg-red-500/25 border-red-500/70 text-red-400 hover:bg-red-500/35 shadow-[0_0_14px_rgba(239,68,68,0.35)]';
+                  textClass = 'text-red-400 font-black drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]';
+                  ringClass = isToday ? 'ring-2 ring-red-500 shadow-[0_0_20px_rgba(239,68,68,0.6)]' : '';
+                  indicator = <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,1)] animate-pulse" />;
                 } else if (day.status === 'present') {
-                  tileBg = 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 font-bold';
-                  indicator = <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />;
+                  tileBg = 'bg-emerald-500/20 border-emerald-500/70 text-emerald-300 hover:bg-emerald-500/30 shadow-[0_0_14px_rgba(16,185,129,0.3)]';
+                  textClass = 'text-emerald-300 font-black drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]';
+                  ringClass = isToday ? 'ring-2 ring-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.6)]' : '';
+                  indicator = <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,1)]" />;
                 } else if (day.status === 'late') {
-                  tileBg = 'bg-amber-500/15 border-amber-500/30 text-amber-300 font-bold';
-                  indicator = <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />;
-                } else if (day.status === 'absent') {
-                  tileBg = 'bg-rose-500/15 border-rose-500/30 text-rose-300 font-bold';
-                  indicator = <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />;
+                  tileBg = 'bg-amber-500/20 border-amber-500/70 text-amber-300 hover:bg-amber-500/30 shadow-[0_0_14px_rgba(245,158,11,0.3)]';
+                  textClass = 'text-amber-300 font-black drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]';
+                  ringClass = isToday ? 'ring-2 ring-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.6)]' : '';
+                  indicator = <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(245,158,11,1)]" />;
+                } else if (day.holiday) {
+                  tileBg = 'bg-purple-500/20 border-purple-500/60 text-purple-300 hover:bg-purple-500/30 shadow-[0_0_10px_rgba(168,85,247,0.25)]';
+                  textClass = 'text-purple-300 font-bold';
+                  ringClass = isToday ? 'ring-2 ring-purple-500 shadow-[0_0_16px_rgba(168,85,247,0.5)]' : '';
+                  indicator = <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_6px_rgba(168,85,247,1)]" />;
+                } else if (isToday) {
+                  ringClass = 'ring-2 ring-blue-500/80 shadow-[0_0_12px_rgba(59,130,246,0.4)]';
                 }
 
                 return (
                   <button
                     key={i}
                     onClick={() => setSelectedDayInfo(day)}
-                    className={`h-9 sm:h-11 rounded-xl flex flex-col items-center justify-center relative border transition-all cursor-pointer ${tileBg} ${
-                      isToday ? 'ring-2 ring-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.5)]' : ''
-                    } ${isSelected ? 'ring-2 ring-white scale-105 z-10' : ''}`}
+                    className={`h-9 sm:h-11 rounded-xl flex flex-col items-center justify-center relative border transition-all cursor-pointer ${tileBg} ${ringClass} ${
+                      isSelected ? 'ring-2 ring-white scale-105 z-10' : ''
+                    }`}
                   >
-                    <span className="text-xs sm:text-sm">{day.day}</span>
+                    <span className={`text-xs sm:text-sm ${textClass}`}>{day.day}</span>
                     <div className="absolute bottom-1">{indicator}</div>
                   </button>
                 );
@@ -495,7 +688,15 @@ export default function StudentDashboard() {
 
           {/* Calendar Day Inspector Card */}
           {selectedDayInfo && (
-            <div className="mt-4 p-3.5 rounded-xl bg-[#111726] border border-blue-500/30 flex items-center justify-between gap-3 animate-fade-in">
+            <div className={`mt-4 p-3.5 rounded-xl border flex items-center justify-between gap-3 animate-fade-in ${
+              selectedDayInfo.status === 'absent'
+                ? 'bg-red-500/10 border-red-500/30 shadow-[0_0_16px_rgba(239,68,68,0.15)]'
+                : selectedDayInfo.status === 'present'
+                ? 'bg-emerald-500/10 border-emerald-500/30'
+                : selectedDayInfo.holiday
+                ? 'bg-purple-500/10 border-purple-500/30'
+                : 'bg-[#111726] border-blue-500/30'
+            }`}>
               <div className="min-w-0 space-y-0.5">
                 <p className="text-xs font-bold text-white">
                   {new Date(selectedDayInfo.dateStr + 'T00:00:00').toLocaleDateString('en-IN', {
@@ -505,23 +706,29 @@ export default function StudentDashboard() {
                     year: 'numeric',
                   })}
                 </p>
-                <p className="text-[11px] text-slate-300">
-                  {selectedDayInfo.holiday
-                    ? `🎉 School Holiday: ${selectedDayInfo.holiday.name}`
+                <p className={`text-[11px] font-medium ${
+                  selectedDayInfo.status === 'absent'
+                    ? 'text-red-300 font-semibold'
+                    : selectedDayInfo.status === 'present'
+                    ? 'text-emerald-300 font-semibold'
+                    : 'text-slate-300'
+                }`}>
+                  {selectedDayInfo.status === 'absent'
+                    ? '❌ Marked Absent in Attendance Register'
                     : selectedDayInfo.status === 'present'
                     ? '✅ Marked Present in School Register'
                     : selectedDayInfo.status === 'late'
                     ? '⏰ Marked Late Arrival (Recorded)'
-                    : selectedDayInfo.status === 'absent'
-                    ? '❌ Marked Absent'
+                    : selectedDayInfo.holiday
+                    ? `🎉 School Holiday: ${selectedDayInfo.holiday.name}`
                     : '📅 No attendance recorded on this day'}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedDayInfo(null)}
-                className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-white/[0.04]"
+                className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] transition-colors cursor-pointer"
               >
-                Close
+                Dismiss
               </button>
             </div>
           )}
@@ -529,16 +736,16 @@ export default function StudentDashboard() {
           {/* Legend */}
           <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-white/[0.06] text-xs text-slate-400">
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span>Present</span>
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+              <span className="font-medium text-slate-300">Present</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
-              <span>Absent</span>
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse" />
+              <span className="font-semibold text-red-400">Absent</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-purple-400" />
-              <span>Holiday</span>
+              <div className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_6px_rgba(168,85,247,0.6)]" />
+              <span className="font-medium text-slate-300">Holiday</span>
             </div>
           </div>
         </div>

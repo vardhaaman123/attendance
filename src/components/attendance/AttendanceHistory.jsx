@@ -6,6 +6,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { calcAttendanceStats } from '../../utils/attendanceCalc';
+import { getTeacherScope } from '../../utils/teacherScope';
 import CustomSelect from '../ui/CustomSelect';
 
 function AttendanceEditModal({ record, students, onSave, onClose }) {
@@ -153,13 +154,37 @@ export default function AttendanceHistory() {
   } = useApp();
   const { role, user } = useAuth();
 
-  const [classFilter, setClassFilter] = useState('all');
-  const [sectionFilter, setSectionFilter] = useState('all');
+  const teacherScope = useMemo(() => getTeacherScope(user, role), [user, role]);
+
+  const [classFilter, setClassFilter] = useState(() => {
+    if (role === 'teacher' && teacherScope.allowedClasses.length > 0) {
+      return teacherScope.defaultClass;
+    }
+    return 'all';
+  });
+  const [sectionFilter, setSectionFilter] = useState(() => {
+    if (role === 'teacher' && teacherScope.allowedSections.length > 0) {
+      return teacherScope.defaultSection;
+    }
+    return 'all';
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [editRecord, setEditRecord] = useState(null);
   const [recordToDelete, setRecordToDelete] = useState(null);
   const [page, setPage] = useState(1);
   const PER_PAGE = 15;
+
+  // Auto-sync teacher filter boundaries
+  useEffect(() => {
+    if (role === 'teacher' && teacherScope.isRestricted) {
+      if (teacherScope.allowedClasses.length > 0 && classFilter !== 'all' && !teacherScope.isClassAllowed(classFilter)) {
+        setClassFilter(teacherScope.defaultClass);
+      }
+      if (teacherScope.allowedSections.length > 0 && sectionFilter !== 'all' && !teacherScope.isSectionAllowed(sectionFilter)) {
+        setSectionFilter(teacherScope.defaultSection);
+      }
+    }
+  }, [role, teacherScope, classFilter, sectionFilter]);
 
   // Auto-fetch students if empty on mount
   useEffect(() => {
@@ -177,29 +202,33 @@ export default function AttendanceHistory() {
 
   // Calculate available classes dynamically from both students and existing attendance records
   const availableClasses = useMemo(() => {
+    if (role === 'teacher' && teacherScope.allowedClasses.length > 0) {
+      return teacherScope.allowedClasses;
+    }
     const fromStudents = (students || []).map(s => String(s.class || '').trim());
     const fromRecords = Object.values(attendanceRecords || {}).map(r => String(r?.class || '').trim());
     const set = new Set([...fromStudents, ...fromRecords, '8', '9', '10'].filter(Boolean));
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [students, attendanceRecords]);
+  }, [students, attendanceRecords, role, teacherScope]);
 
   // Calculate available sections dynamically
   const availableSections = useMemo(() => {
+    if (role === 'teacher' && teacherScope.allowedSections.length > 0) {
+      return teacherScope.allowedSections;
+    }
     const fromStudents = (students || []).map(s => String(s.section || '').trim().toUpperCase());
     const fromRecords = Object.values(attendanceRecords || {}).map(r => String(r?.section || '').trim().toUpperCase());
     const set = new Set([...fromStudents, ...fromRecords, 'A', 'B'].filter(Boolean));
     return Array.from(set).sort();
-  }, [students, attendanceRecords]);
+  }, [students, attendanceRecords, role, teacherScope]);
 
   const canEditRecord = (record) => {
     if (role === 'admin') return false; // Admin cannot take or edit attendance; restricted to assigned teachers only
     if (role === 'teacher') {
-      if (!user?.class && !user?.section) return true;
-      const tClass = String(user?.class || '').trim();
-      const tSec = String(user?.section || '').trim().toUpperCase();
+      if (!teacherScope.isRestricted) return true;
       const rClass = String(record?.class || '').trim();
       const rSec = String(record?.section || '').trim().toUpperCase();
-      return (!tClass || tClass === rClass) && (!tSec || tSec === rSec);
+      return teacherScope.isClassAllowed(rClass) && teacherScope.isSectionAllowed(rSec);
     }
     return false;
   };
@@ -214,7 +243,17 @@ export default function AttendanceHistory() {
         const recSection = String(rec.section || (key.includes('_') ? key.split('_')[2] : '')).trim().toUpperCase();
         const recDate = String(rec.date || (key.includes('_') ? key.split('_')[0] : '')).trim();
 
-        if (classFilter !== 'all' && recClass !== String(classFilter).trim()) return false;
+        if (role === 'teacher' && teacherScope.isRestricted) {
+          if (!teacherScope.isClassAllowed(recClass) || !teacherScope.isSectionAllowed(recSection)) {
+            return false;
+          }
+        }
+
+        if (classFilter !== 'all') {
+          const cleanFCls = String(classFilter).trim().replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '');
+          const cleanRCls = recClass.replace(/^(class|cls)\.?\s*/i, '').replace(/(st|nd|rd|th)$/i, '');
+          if (cleanRCls !== cleanFCls) return false;
+        }
         if (sectionFilter !== 'all' && recSection !== String(sectionFilter).trim().toUpperCase()) return false;
 
         if (searchQuery.trim()) {
@@ -287,7 +326,7 @@ export default function AttendanceHistory() {
   return (
     <div className="max-w-5xl mx-auto space-y-5 animate-fade-in pb-10">
       {/* ── TOP HEADER & CONTROLS ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-30">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
         <div>
           <h1 className="text-xl font-bold text-navy-900 dark:text-white">Attendance History</h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -295,7 +334,7 @@ export default function AttendanceHistory() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 relative z-30">
+        <div className="flex flex-wrap items-center gap-2 relative z-10">
           {/* Search */}
           <div className="relative flex-1 sm:flex-initial min-w-[140px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />

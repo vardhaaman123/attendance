@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Phone, Mail, BookOpen, Award, Edit2, Key, Eye, EyeOff, Copy, Check } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { useApp } from '../../context/AppContext';
+import { getTeacherScope } from '../../utils/teacherScope';
 
 export default function TeacherProfileModal({ open, teacher, onClose, onEdit }) {
   const { students, teachers } = useApp();
@@ -22,9 +23,8 @@ export default function TeacherProfileModal({ open, teacher, onClose, onEdit }) 
   const avatarHue = ((liveTeacher.name || 'T').charCodeAt(0) * 53) % 360;
   const currentPassword = liveTeacher.password || 'teacher123';
 
-  const assignedStudents = (students || []).filter(
-    s => String(s.class) === String(liveTeacher.class) && String(s.section).toUpperCase() === String(liveTeacher.section).toUpperCase()
-  );
+  const teacherScope = getTeacherScope(liveTeacher, 'teacher');
+  const assignedStudents = teacherScope.filterStudents(students || []);
 
   const handleCopyPassword = () => {
     navigator.clipboard.writeText(currentPassword);
