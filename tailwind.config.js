@@ -53,13 +53,14 @@ export default {
         'pill-glow': '0 0 20px -2px rgba(59, 130, 246, 0.4)',
       },
       animation: {
-        'fade-in': 'fadeIn 0.25s ease-out',
-        'slide-up': 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        'slide-down': 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        'slide-in-right': 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-        'toast-in': 'toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
-        'popover-in': 'popoverIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-        'modal-pop': 'modalPop 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
+        'fade-in': 'fadeIn 0.2s ease-out',
+        'page-entrance': 'pageEntrance 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-up': 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-down': 'slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        'slide-in-right': 'slideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+        'toast-in': 'toastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        'popover-in': 'popoverIn 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+        'modal-pop': 'modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
         'float': 'float 7s ease-in-out infinite',
         'float-slow': 'float 11s ease-in-out infinite',
         'pulse-subtle': 'pulseSubtle 3s ease-in-out infinite',
@@ -74,12 +75,16 @@ export default {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
         },
+        pageEntrance: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         slideUp: {
-          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         slideDown: {
-          '0%': { opacity: '0', transform: 'translateY(-12px)' },
+          '0%': { opacity: '0', transform: 'translateY(-8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         slideInRight: {
@@ -91,11 +96,11 @@ export default {
           '100%': { opacity: '1', transform: 'translateX(0)' },
         },
         popoverIn: {
-          '0%': { opacity: '0', transform: 'scale(0.95) translateY(-6px)' },
+          '0%': { opacity: '0', transform: 'scale(0.97) translateY(-4px)' },
           '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
         },
         modalPop: {
-          '0%': { opacity: '0', transform: 'scale(0.94) translateY(12px)' },
+          '0%': { opacity: '0', transform: 'scale(0.96) translateY(8px)' },
           '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
         },
         float: {

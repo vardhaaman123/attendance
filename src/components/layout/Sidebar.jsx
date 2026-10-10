@@ -363,7 +363,7 @@ export function MobileDrawer({ open, onClose }) {
       setVisible(false);
       const timer = setTimeout(() => {
         setMounted(false);
-      }, 300);
+      }, 220);
       document.body.style.overflow = '';
       return () => {
         clearTimeout(timer);
@@ -390,16 +390,16 @@ export function MobileDrawer({ open, onClose }) {
     <div className="lg:hidden fixed inset-0 z-50 no-print">
       {/* Backdrop overlay */}
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-out cursor-pointer ${
+        className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-200 ease-out cursor-pointer ${
           visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Compact Side Drawer (proportionate width: ~64vw, min 185px, max 220px) */}
+      {/* Compact Side Drawer (proportionate width: ~64vw, min 185px, max 220px, 220ms animation) */}
       <aside
-        className={`fixed left-0 top-0 bottom-0 w-[64vw] min-w-[185px] max-w-[220px] bg-[#0B0F1A]/95 backdrop-blur-2xl border-r border-white/10 shadow-[8px_0_32px_rgba(0,0,0,0.65)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform z-10 flex flex-col ${
+        className={`fixed left-0 top-0 bottom-0 w-[64vw] min-w-[185px] max-w-[220px] bg-[#0B0F1A]/95 backdrop-blur-2xl border-r border-white/10 shadow-[8px_0_32px_rgba(0,0,0,0.65)] transition-transform duration-[220ms] ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform z-10 flex flex-col ${
           visible ? 'translate-x-0' : '-translate-x-full pointer-events-none'
         }`}
         role="dialog"
